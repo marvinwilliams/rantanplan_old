@@ -5,10 +5,10 @@ FLEX = flex
 
 all: $(BASE)
 
-%.cxx %.hxx: %.yy
+parser.cxx parser.hxx: src/parser/parser.yy
 	$(BISON) $(BISONFLAGS) -o $*.cxx $<
 
-%.cxx: %.ll
+scanner.cxx: src/parser/scanner.ll
 	$(FLEX) $(FLEXFLAGS) -o$@ $<
 
 %.o: %.cxx %.cpp
@@ -21,6 +21,6 @@ $(BASE).o: parser.hxx
 parser.o: parser.hxx
 scanner.o: parser.hxx
 
-CLEANFILES = $(BASE) *.o parser.hh parser.cc location.hh scanner.cc
+CLEANFILES = $(BASE) *.o parser.hh parser.cxx location.hxx scanner.cxx
 clean:
 	rm -f $(CLEANFILES)
