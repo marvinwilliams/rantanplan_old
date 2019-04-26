@@ -10,7 +10,6 @@
 %}
 
 %option c++ batch noinput nounput noyywrap
-%option outfile="scanner.cxx"
 
 %s domain
 %s problem
@@ -39,42 +38,18 @@ BLANK [ \t\r]
                   *loc, "invalid character: " + std::string(yytext));
                 }
 
-%{
-//<domain><<EOF>> {
-//                  lex_problem();
-//                }
-%}
+<domain><<EOF>> {
+                  read_problem_();
+                  BEGIN(problem);
+                }
 <<EOF>>         {
                   return parser::Parser::make_END(*loc);
                 }
 
 %%
 
-parser::Scanner::Scanner(Driver& driver) : loc{&driver.loc}, domain_file{&driver.domain_file}, problem_file{&driver.problem_file} {
-  lex_domain();
-}
-
-void parser::Scanner::lex_domain() {
-  current_stream.open(*domain_file);
-  if (!current_stream) {
-    throw std::system_error(errno, std::system_category(),
-                            "failed to open " + *domain_file);
-  }
-  loc->initialize(domain_file);
-  switch_streams(&current_stream);
+parser::Scanner::Scanner(std::istream* stream, std::function<void(Scanner &>) read_problem) : yyFlexLexer{stream}, read_problem_{read_problem} {
   BEGIN(domain);
-}
-
-void parser::Scanner::lex_problem() {
-  current_stream.close();
-  current_stream.open(*problem_file);
-  if (!current_stream) {
-    throw std::system_error(errno, std::system_category(),
-                            "failed to open " + *problem_file);
-  }
-  loc->initialize(problem_file);
-  switch_streams(&current_stream);
-  BEGIN(problem);
 }
 
 int yyFlexLexer::yylex() {

@@ -1,26 +1,24 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
+#include "parser.hxx"
 #include <fstream>
+#include <memory>
 #include <string>
-#include "location.hxx"
 
 namespace parser {
 
 class Scanner;
 
 class Driver {
- public:
-  Driver(const std::string& domain_file, const std::string& problem_file);
+public:
+  Driver();
 
-  int parse();
+  int parse(std::string domain_in, std::string problem_in);
 
-  location loc;
-  std::string domain_file;
-  std::string problem_file;
-  Scanner* scanner;
+  Scanner *scanner;
 };
 
-}  // namespace parser
+} // namespace parser
 
 #endif /* end of include guard: DRIVER_H */

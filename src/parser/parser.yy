@@ -3,26 +3,27 @@
 %skeleton "lalr1.cc"
 
 %code requires {
-  //class parser::Driver;
+  namespace parser {
+    class Driver;
+  }
 }
 
 %code top {
+  #include <iostream>
+  #include "driver.h"
+  #include "scanner.h"
   #ifdef TRACE
   #define YYDEBUG 1
   #endif
-  #include "driver.h"
-  #include "scanner.h"
   #undef yylex
   #define yylex driver.scanner->lex
 }
 
-%output  "parser.cxx"
-%defines "parser.hxx"
+%defines
 %locations
-%define api.location.file "location.hxx"
+%define api.location.file none
 
 %define api.value.type variant
-  //%define api.value.automove
 %define api.token.constructor
 %define parse.assert
 %define parse.error verbose
@@ -45,13 +46,11 @@ END 0         "end of file"
 %%
 %start unit;
 unit:
-    LPAREN RPAREN {std::cout << "Parsing complete";}
+    LPAREN RPAREN {std::cout << "Parsing complete\n";}
 ;
-
 %%
 
 void parser::Parser::error (const location_type& l, const std::string& m)
 {
-  std::cout << "test";
   throw syntax_error(l, m);
 }
