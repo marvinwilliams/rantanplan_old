@@ -8,19 +8,17 @@
 #include <fstream>
 #include <functional>
 #include <string>
-#define YY_DECL parser::Parser::symbol_type parser::Scanner::lex()
+#define YY_DECL                                                                \
+  parser::Parser::symbol_type parser::Scanner::lex(                            \
+      Driver<parser::Scanner, parser::Parser> &driver)
 
 namespace parser {
 
 class Scanner : public yyFlexLexer {
 public:
-  Scanner(std::ifstream *stream, std::function<void(Scanner &)> read_problem);
+  Scanner(std::istream *stream);
 
-  Parser::symbol_type lex();
-
-private:
-  std::function<void(Scanner &)> read_problem_;
-  location *loc;
+  Parser::symbol_type lex(Driver<parser::Scanner, parser::Parser> &driver);
 };
 
 } // namespace parser

@@ -5,14 +5,17 @@ configure_file(
 
 add_executable(rantanplan
   rantanplan.cpp
-  parser/driver.cpp
+  model/builder.h
   )
 
 target_include_directories(rantanplan PRIVATE ".")
 target_include_directories(rantanplan PRIVATE "parser")
+target_include_directories(rantanplan PRIVATE "model")
 target_include_directories(rantanplan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(rantanplan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/parser")
 
 add_subdirectory("parser")
 
 target_link_libraries(rantanplan parser)
+
+install(TARGETS rantanplan DESTINATION "${PROJECT_SOURCE_DIR}/bin")

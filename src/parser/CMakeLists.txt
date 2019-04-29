@@ -7,7 +7,7 @@ BISON_TARGET(parser parser.yy "${CMAKE_CURRENT_BINARY_DIR}/parser.cxx"
 
 ADD_FLEX_BISON_DEPENDENCY(scanner parser)
 
-add_library(parser STATIC ${FLEX_scanner_OUTPUTS} ${BISON_parser_OUTPUTS})
+add_library(parser STATIC ${FLEX_scanner_OUTPUTS} ${BISON_parser_OUTPUTS} ../model/builder.h ../model/builder.cpp)
 
 target_include_directories(parser PRIVATE ".")
 target_include_directories(parser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
