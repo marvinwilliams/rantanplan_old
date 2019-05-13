@@ -5,7 +5,6 @@ configure_file(
 
 add_executable(rantanplan
   rantanplan.cpp
-  model/builder.h
   )
 
 target_include_directories(rantanplan PRIVATE ".")

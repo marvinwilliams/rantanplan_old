@@ -2,23 +2,32 @@
 #define SCANNER_H
 
 #undef yyFlexLexer
-#include "driver.h"
 #include "parser.hxx"
 #include <FlexLexer.h>
 #include <fstream>
-#include <functional>
 #include <string>
-#define YY_DECL                                                                \
-  parser::Parser::symbol_type parser::Scanner::lex(                            \
-      Driver<parser::Scanner, parser::Parser> &driver)
+#define YY_DECL parser::Parser::symbol_type parser::Scanner::lex()
 
 namespace parser {
 
 class Scanner : public yyFlexLexer {
 public:
-  Scanner(std::istream *stream);
+  using location_type = typename Parser::location_type;
 
-  Parser::symbol_type lex(Driver<parser::Scanner, parser::Parser> &driver);
+  Scanner(const std::string &domain_file, const std::string &problem_file,
+          std::istream *domain_stream, std::istream *problem_stream);
+
+  Parser::symbol_type lex();
+
+  void domain_end();
+
+private:
+  std::string domain_file_;
+  std::string problem_file_;
+  std::istream *domain_stream_;
+  std::istream *problem_stream_;
+
+  location_type location_;
 };
 
 } // namespace parser

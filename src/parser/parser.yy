@@ -4,29 +4,27 @@
 
 %code requires {
   namespace parser {
-    template<typename Scanner, typename Parser>
-    class Driver;
     class Scanner;
   }
+  #include "ast.h"
+}
+
+%code provides {
+  using List = std::vector<std::string>;
+  using TypedList = std::vector<std::pair<std::vector<std::string>, std::string>>;
 }
 
 %code top {
   #include "parser.hxx"
-  #include "driver.h"
   #include "scanner.h"
-  #include "../model/builder.h"
+  #include "ast.h"
   #include <iostream>
-  #ifdef TRACE
-  #define YYDEBUG 1
-  #endif
   #undef yylex
-  #define yylex driver.lex
+  #define yylex scanner.lex
 }
 
 %defines
 %locations
-%define api.location.file none
-
 %define api.value.type variant
 %define api.token.constructor
 %define parse.assert
@@ -35,7 +33,7 @@
 %define api.namespace {parser}
 %define api.parser.class {Parser}
 
-%parse-param {Driver<Scanner, Parser>& driver}
+%parse-param {Scanner& scanner} {ast::AST& ast}
 
 %token
 LPAREN        "("
@@ -69,10 +67,10 @@ END 0         "end of file"
 ;
 
 %type
-domain-def
-domain-body
-require-def
-require-list
+<std::unique_ptr<ast::Domain>> domain-def
+<std::vector<std::unique_ptr<ast::Domain::Element>>> domain-body
+<std::unique_ptr<ast::Domain::Element>> require-def
+<std::vector<std::unique_ptr<ast::Requirement>>> require-list
 types-def
 constants-def
 predicates-def
@@ -87,56 +85,72 @@ effect-def
 effect-body
 effect-list
 problem-def
-unknown-keyword
-<std::vector<std::pair<std::string, std::string>>>  typed-name-list
+problem-body
+object-def
+init-def
+init-list
+goal-def
+<std::vector<std::pair<std::vector<std::string>, std::string>>>  typed-name-list
 <std::vector<std::pair<std::string, std::string>>>  typed-var-list
 <std::vector<std::string>>                          name-list
 <std::vector<std::string>>                          var-list
 <std::vector<std::string>>                          param-list
-
 ;
 
 %%
 %start unit;
 unit:
-    domain-def problem-def {
-      model::Builder builder{"domain", "problem"};
-      builder.add_requirement("invalid_requirement", driver.get_location());
+    domain-def {
+      scanner.domain_end();
+    }
+    problem-def {
+    }
+    {
+      ast.set_domain(std::move($[domain-def]));
     }
 ;
 domain-def:
-    "(" "def" "(" "domain" "name" ")" domain-body ")" {
+    "(" DEFINE "(" DOMAIN NAME ")" domain-body ")" {
+      $$ = std::make_unique<ast::Domain>(@$);
+      $$->name = $[NAME];
+      $$->domain_body = std::move($[domain-body]);
     }
 ;
 domain-body:
     %empty {}
-  | domain-body require-def {}
+  | domain-body require-def {
+      $$.push_back(std::move($[require-def]));
+    }
   | domain-body types-def {}
   | domain-body constants-def {}
   | domain-body predicates-def {}
   | domain-body action-def {}
-  | domain-body unknown-keyword {}
 ;
 require-def:
-    "(" "reqs" require-list ")" {
+    "(" REQUIREMENTS require-list ")" {
+      $$ = std::make_unique<ast::Domain::Element>(ast::RequirementsDef{@$, std::move($[require-list])});
     }
 ;
 require-list:
-    "key" {
+    KEYWORD {
+      auto req = std::make_unique<ast::Requirement>(@$, $[KEYWORD]);
+      $$.push_back(std::move(req));
     }
-  | require-list "key" {
+  | require-list KEYWORD {
+      auto req = std::make_unique<ast::Requirement>(@$, $[KEYWORD]);
+      $1.push_back(std::move(req));
     }
 ;
 types-def:
-    "(" "types" typed-name-list ")" {
+    "(" TYPES typed-name-list[types] ")" {
     }
 ;
 constants-def:
-    "(" "const" typed-name-list ")" {
+    "(" CONSTANTS typed-name-list ")" {
     }
 ;
 predicates-def:
-    "(" "pred" predicate-list ")" {
+    "(" PREDICATES predicate-list ")" {
     }
 ;
 predicate-list:
@@ -146,11 +160,11 @@ predicate-list:
     }
 ;
 predicate-def:
-    "(" "name" typed-var-list ")" {
+    "(" NAME typed-var-list ")" {
     }
 ;
 action-def:
-    "(" "action" "name" "param" "(" typed-var-list ")" action-body ")" {
+    "(" ACTION NAME PARAMETERS "(" typed-var-list ")" action-body ")" {
     }
 ;
 action-body:
@@ -159,12 +173,12 @@ action-body:
 ;
 precondition-def:
     %empty {}
-  | "precond" "(" precondition-body ")" {
+  | PRECONDITION "(" precondition-body ")" {
     }
 ;
 precondition-body:
     %empty {}
-  | "name" param-list {
+  | NAME param-list {
     }
   | "=" param-list {
     }
@@ -182,14 +196,14 @@ precondition-list:
 ;
 effect-def:
     %empty {}
-  | "effect" "(" effect-body ")" {
+  | EFFECT "(" effect-body ")" {
     }
 ;
 effect-body:
     %empty {}
-  | "name" param-list {
+  | NAME param-list {
     }
-  | "not" "(" "name" param-list ")" {
+  | "not" "(" NAME param-list ")" {
     }
   | "and" effect-list {
     }
@@ -200,17 +214,39 @@ effect-list:
     }
 ;
 problem-def:
-    %empty {}
+    "(" DEFINE "(" PROBLEM NAME ")" "(" DOMAIN_REF NAME ")" problem-body ")" {
+    }
 ;
-unknown-keyword:
-    "(" "key" error ")" {
-      yyerrok;
+problem-body:
+    %empty {}
+  | problem-body require-def {}
+  | problem-body object-def {}
+  | problem-body init-def {}
+  | problem-body goal-def {}
+;
+object-def:
+    "(" OBJECTS typed-name-list ")" {
+    }
+;
+init-def:
+    "(" INIT init-list ")" {
+    }
+;
+init-list:
+    %empty {}
+  | init-list "(" NAME name-list ")" {
+    }
+  | init-list "(" "not" "(" NAME name-list ")" ")" {
+  }
+;
+goal-def:
+    "(" GOAL "(" precondition-body ")" ")" {
     }
 ;
 typed-name-list:
     name-list {
     }
-  | name-list "name" "-" "name" typed-name-list {
+  | name-list[types] NAME[type] "-" NAME[supertype] typed-name-list[typelist] {
     }
 ;
 typed-var-list:
@@ -221,7 +257,7 @@ typed-var-list:
 ;
 name-list:
     %empty {}
-  | name-list "name" {
+  | name-list NAME {
     }
 ;
 var-list:
@@ -240,5 +276,5 @@ param-list:
 
 void parser::Parser::error (const location_type& l, const std::string& m)
 {
-  throw syntax_error(l, m);
+  std::cerr << l << ": " << m << '\n';
 }
