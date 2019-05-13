@@ -7,8 +7,9 @@ namespace parser {
 
 namespace ast {
 
-template <typename Derived> class Visitor {
-public:
+template <typename Derived>
+class Visitor {
+ public:
   Derived *get_derived() { return static_cast<Derived *>(this); }
 
   bool traverse(const AST &ast);
@@ -18,7 +19,10 @@ public:
   bool traverse(const Requirement &);
   bool traverse(const Type &);
   bool traverse(const TypeList &);
+  bool traverse(const TypesDef &);
   bool traverse(const Constant &);
+  bool traverse(const ConstantsDef &);
+  bool traverse(const PredicatesDef &);
   bool traverse(const ActionDef &);
 
   bool visit(const AST &) { return true; }
@@ -33,7 +37,8 @@ public:
   struct DomainBodyVisitor {
     DomainBodyVisitor(Derived *visitor) : visitor{visitor} {}
 
-    template <typename E> bool operator()(const E &elem) {
+    template <typename E>
+    bool operator()(const E &elem) {
       return visitor->traverse(elem);
     }
 
@@ -43,7 +48,8 @@ public:
   virtual ~Visitor() {}
 };
 
-template <typename Derived> bool Visitor<Derived>::traverse(const AST &ast) {
+template <typename Derived>
+bool Visitor<Derived>::traverse(const AST &ast) {
   if (!get_derived()->traverse(*ast.domain.get())) {
     return false;
   }
@@ -62,10 +68,10 @@ bool Visitor<Derived>::traverse(const Domain &domain) {
 
 template <typename Derived>
 bool Visitor<Derived>::traverse(const Domain::Element &element) {
-  /* if (!std::visit(Visitor<Derived>::DomainBodyVisitor{get_derived()}, */
-  /*                 element)) { */
-  /*   return false; */
-  /* } */
+  if (!std::visit(Visitor<Derived>::DomainBodyVisitor{get_derived()},
+                  element)) {
+    return false;
+  }
   return get_derived()->visit(element);
 }
 
@@ -84,7 +90,8 @@ bool Visitor<Derived>::traverse(const Requirement &requirement) {
   return get_derived()->visit(requirement);
 }
 
-template <typename Derived> bool Visitor<Derived>::traverse(const Type &type) {
+template <typename Derived>
+bool Visitor<Derived>::traverse(const Type &type) {
   return get_derived()->visit(type);
 }
 
@@ -99,17 +106,32 @@ bool Visitor<Derived>::traverse(const TypeList &type_list) {
 }
 
 template <typename Derived>
-bool Visitor<Derived>::traverse(const ActionDef &action) {
-  return true;
-}
-
-template <typename Derived>
 bool Visitor<Derived>::traverse(const Constant &constant) {
   return get_derived()->visit(constant);
 }
 
-} // namespace ast
+template <typename Derived>
+bool Visitor<Derived>::traverse(const PredicatesDef &action) {
+  return true;
+}
 
-} // namespace parser
+template <typename Derived>
+bool Visitor<Derived>::traverse(const ConstantsDef &action) {
+  return true;
+}
+
+template <typename Derived>
+bool Visitor<Derived>::traverse(const TypesDef &action) {
+  return true;
+}
+
+template <typename Derived>
+bool Visitor<Derived>::traverse(const ActionDef &action) {
+  return true;
+}
+
+}  // namespace ast
+
+}  // namespace parser
 
 #endif /* end of include guard: VISITOR_H */
