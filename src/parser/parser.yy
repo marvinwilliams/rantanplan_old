@@ -10,8 +10,6 @@
 }
 
 %code provides {
-  using List = std::vector<std::string>;
-  using TypedList = std::vector<std::pair<std::vector<std::string>, std::string>>;
 }
 
 %code top {
@@ -68,9 +66,9 @@ END 0         "end of file"
 
 %type
 <std::unique_ptr<ast::Domain>> domain-def
-<std::vector<std::unique_ptr<ast::Domain::Element>>> domain-body
+<std::vector<ast::Domain::Element>> domain-body
 <std::unique_ptr<ast::Domain::Element>> require-def
-<std::vector<std::unique_ptr<ast::Requirement>>> require-list
+<std::vector<ast::Requirement>> require-list
 types-def
 constants-def
 predicates-def
@@ -111,34 +109,40 @@ unit:
 ;
 domain-def:
     "(" DEFINE "(" DOMAIN NAME ")" domain-body ")" {
-      $$ = std::make_unique<ast::Domain>(@$);
-      $$->name = $[NAME];
-      $$->domain_body = std::move($[domain-body]);
+      $$ = std::make_unique<ast::Domain>(@$, $[NAME], std::move($[domain-body]));
     }
 ;
 domain-body:
     %empty {}
   | domain-body require-def {
-      $$.push_back(std::move($[require-def]));
+      $1.push_back(std::move($[require-def]));
+      $$ = std::move($1);
     }
-  | domain-body types-def {}
-  | domain-body constants-def {}
-  | domain-body predicates-def {}
-  | domain-body action-def {}
+  | domain-body types-def {
+      $$ = std::move($1);
+    }
+  | domain-body constants-def {
+      $$ = std::move($1);
+    }
+  | domain-body predicates-def {
+      $$ = std::move($1);
+    }
+  | domain-body action-def {
+      $$ = std::move($1);
+    }
 ;
 require-def:
     "(" REQUIREMENTS require-list ")" {
-      $$ = std::make_unique<ast::Domain::Element>(ast::RequirementsDef{@$, std::move($[require-list])});
+      $$ = ast::Domain::Element{ast::RequirementsDef{@$, std::move($[require-list])}};
     }
 ;
 require-list:
     KEYWORD {
-      auto req = std::make_unique<ast::Requirement>(@$, $[KEYWORD]);
-      $$.push_back(std::move(req));
+      $$.push_back(std::make_unique<ast::Requirement>(@$, $[KEYWORD]));
     }
   | require-list KEYWORD {
-      auto req = std::make_unique<ast::Requirement>(@$, $[KEYWORD]);
-      $1.push_back(std::move(req));
+      $1.push_back(std::make_unique<ast::Requirement>(@$, $[KEYWORD]));
+      $$ = std::move($1);
     }
 ;
 types-def:

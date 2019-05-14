@@ -7,14 +7,12 @@ namespace parser {
 
 namespace ast {
 
-template <typename Derived>
-class Visitor {
- public:
+template <typename Derived> class Visitor {
+public:
   Derived *get_derived() { return static_cast<Derived *>(this); }
 
   bool traverse(const AST &ast);
   bool traverse(const Domain &Domain);
-  bool traverse(const Domain::Element &element);
   bool traverse(const RequirementsDef &requirements_def);
   bool traverse(const Requirement &);
   bool traverse(const Type &);
@@ -27,18 +25,19 @@ class Visitor {
 
   bool visit(const AST &) { return true; }
   bool visit(const Domain &) { return true; }
-  bool visit(const Domain::Element &) { return true; }
   bool visit(const RequirementsDef &) { return true; }
   bool visit(const Requirement &) { return true; }
   bool visit(const Type &) { return true; }
   bool visit(const TypeList &) { return true; }
   bool visit(const Constant &) { return true; }
+  bool visit_element() { return true; }
 
+private:
+  bool traverse_(const Domain::Element &element);
   struct DomainBodyVisitor {
     DomainBodyVisitor(Derived *visitor) : visitor{visitor} {}
 
-    template <typename E>
-    bool operator()(const E &elem) {
+    template <typename E> bool operator()(const E &elem) {
       return visitor->traverse(elem);
     }
 
@@ -48,9 +47,8 @@ class Visitor {
   virtual ~Visitor() {}
 };
 
-template <typename Derived>
-bool Visitor<Derived>::traverse(const AST &ast) {
-  if (!get_derived()->traverse(*ast.domain.get())) {
+template <typename Derived> bool Visitor<Derived>::traverse(const AST &ast) {
+  if (!get_derived()->traverse(*ast.domain)) {
     return false;
   }
   return get_derived()->visit(ast);
@@ -64,15 +62,6 @@ bool Visitor<Derived>::traverse(const Domain &domain) {
     }
   }
   return get_derived()->visit(domain);
-}
-
-template <typename Derived>
-bool Visitor<Derived>::traverse(const Domain::Element &element) {
-  if (!std::visit(Visitor<Derived>::DomainBodyVisitor{get_derived()},
-                  element)) {
-    return false;
-  }
-  return get_derived()->visit(element);
 }
 
 template <typename Derived>
@@ -90,8 +79,7 @@ bool Visitor<Derived>::traverse(const Requirement &requirement) {
   return get_derived()->visit(requirement);
 }
 
-template <typename Derived>
-bool Visitor<Derived>::traverse(const Type &type) {
+template <typename Derived> bool Visitor<Derived>::traverse(const Type &type) {
   return get_derived()->visit(type);
 }
 
@@ -130,8 +118,18 @@ bool Visitor<Derived>::traverse(const ActionDef &action) {
   return true;
 }
 
-}  // namespace ast
+template <typename Derived>
+bool Visitor<Derived>::traverse_(const Domain::Element &element) {
+  if (!std::visit(Visitor<Derived>::DomainBodyVisitor{get_derived()},
+                  element)) {
+    return false;
+  }
+  return get_derived().visit_element();
+}
 
-}  // namespace parser
+
+} // namespace ast
+
+} // namespace parser
 
 #endif /* end of include guard: VISITOR_H */
