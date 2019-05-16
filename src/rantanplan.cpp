@@ -5,25 +5,31 @@
 #include "parser/visitor.h"
 #include <iostream>
 
-namespace parser {
-namespace ast {
-class MyVisitor : public Visitor<MyVisitor> {
+class MyVisitor : public parser::ast::Visitor<MyVisitor> {
 public:
   using Visitor<MyVisitor>::traverse;
   using Visitor<MyVisitor>::visit;
 
-  bool visit(const Domain& domain) {
+  bool visit(const parser::ast::Type& type) {
+    std::cout << "Type " << type.name << " at " << type.loc << std::endl;
+    return true;
+  }
+
+  bool visit(const parser::ast::TypesDef&) {
+    std::cout << "TypesDef!!" << std::endl;
+    return true;
+  }
+
+  bool visit(const parser::ast::Domain& domain) {
     std::cout << "Domain: " << domain.name << std::endl;
     return true;
   }
 
-  bool visit(const Requirement &req) {
-    std::cout << "Found requirement: " << req.name << std::endl;
+  bool visit(const parser::ast::Requirement &req) {
+    std::cout << "Found requirement: " << req.name << " at " << req.loc.begin.column <<  std::endl;
     return true;
   }
 };
-} // namespace ast
-} // namespace parser
 
 int main(int argc, char *argv[]) {
   std::cout << "This is rantanplan version " << VERSION_MAJOR << "."
@@ -39,7 +45,7 @@ int main(int argc, char *argv[]) {
 
   auto result = driver.parse(domain_in, problem_in);
 
-  parser::ast::MyVisitor v;
+  MyVisitor v;
   v.traverse(*driver.ast);
   return result;
 }

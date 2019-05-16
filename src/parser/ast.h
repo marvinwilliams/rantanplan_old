@@ -17,6 +17,11 @@ struct Node {
   virtual ~Node() {}
 };
 
+struct DomainElement : Node {
+protected:
+  DomainElement(const location &loc) : Node{loc} {}
+};
+
 struct Requirement : Node {
   Requirement(const location &loc, const std::string &name)
       : Node{loc}, name{name} {}
@@ -24,11 +29,12 @@ struct Requirement : Node {
   std::string name;
 };
 
-struct RequirementsDef : Node {
-  RequirementsDef(const location &loc, std::vector<Requirement> &&requirements)
-      : Node{loc}, requirements{std::move(requirements)} {}
+struct RequirementsDef : DomainElement {
+  RequirementsDef(const location &loc,
+                  std::vector<std::unique_ptr<Requirement>> &&requirements)
+      : DomainElement{loc}, requirements{std::move(requirements)} {}
 
-  std::vector<Requirement> requirements;
+  std::vector<std::unique_ptr<Requirement>> requirements;
 };
 
 struct Type : Node {
@@ -38,19 +44,20 @@ struct Type : Node {
 };
 
 struct TypeList : Node {
-  TypeList(const location &loc, std::vector<Type> &&types,
+  TypeList(const location &loc, std::vector<std::unique_ptr<Type>> &&types,
            std::unique_ptr<Type> &&supertype)
       : Node{loc}, types{std::move(types)}, supertype{std::move(supertype)} {}
 
-  std::vector<Type> types;
+  std::vector<std::unique_ptr<Type>> types;
   std::unique_ptr<Type> supertype;
 };
 
-struct TypesDef : Node {
-  TypesDef(const location &loc, std::vector<TypeList> &&type_lists)
-      : Node{loc}, type_lists{std::move(type_lists)} {}
+struct TypesDef : DomainElement {
+  TypesDef(const location &loc,
+           std::vector<std::unique_ptr<TypeList>> &&type_lists)
+      : DomainElement{loc}, type_lists{std::move(type_lists)} {}
 
-  std::vector<TypeList> type_lists;
+  std::vector<std::unique_ptr<TypeList>> type_lists;
 };
 
 struct Constant : Node {
@@ -61,19 +68,21 @@ struct Constant : Node {
 };
 
 struct ConstantList : Node {
-  ConstantList(const location &loc, std::vector<Constant> &&constants,
+  ConstantList(const location &loc,
+               std::vector<std::unique_ptr<Constant>> &&constants,
                std::unique_ptr<Type> &&type)
       : Node{loc}, constants{std::move(constants)}, type{std::move(type)} {}
 
-  std::vector<Constant> constants;
+  std::vector<std::unique_ptr<Constant>> constants;
   std::unique_ptr<Type> type;
 };
 
-struct ConstantsDef : Node {
-  ConstantsDef(const location &loc, std::vector<ConstantList> &&constant_lists)
-      : Node{loc}, constant_lists{std::move(constant_lists)} {}
+struct ConstantsDef : DomainElement {
+  ConstantsDef(const location &loc,
+               std::vector<std::unique_ptr<ConstantList>> &&constant_lists)
+      : DomainElement{loc}, constant_lists{std::move(constant_lists)} {}
 
-  std::vector<ConstantList> constant_lists;
+  std::vector<std::unique_ptr<ConstantList>> constant_lists;
 };
 
 struct Parameter : Node {
@@ -84,28 +93,30 @@ struct Parameter : Node {
 };
 
 struct ParameterList : Node {
-  ParameterList(const location &loc, std::vector<Parameter> &&parameters,
+  ParameterList(const location &loc,
+                std::vector<std::unique_ptr<Parameter>> &&parameters,
                 std::unique_ptr<Type> &&type)
       : Node{loc}, parameters{std::move(parameters)}, type{std::move(type)} {}
 
-  std::vector<Parameter> parameters;
+  std::vector<std::unique_ptr<Parameter>> parameters;
   std::unique_ptr<Type> type;
 };
 
 struct Predicate : Node {
   Predicate(const location &loc, const std::string &name,
-            std::vector<ParameterList> &&parameters)
+            std::vector<std::unique_ptr<ParameterList>> &&parameters)
       : Node{loc}, name{name}, parameters{std::move(parameters)} {}
 
   std::string name;
-  std::vector<ParameterList> parameters;
+  std::vector<std::unique_ptr<ParameterList>> parameters;
 };
 
-struct PredicatesDef : Node {
-  PredicatesDef(const location &loc, std::vector<Predicate> &&predicates)
-      : Node{loc}, predicates{std::move(predicates)} {}
+struct PredicatesDef : DomainElement {
+  PredicatesDef(const location &loc,
+                std::vector<std::unique_ptr<Predicate>> &&predicates)
+      : DomainElement{loc}, predicates{std::move(predicates)} {}
 
-  std::vector<Predicate> predicates;
+  std::vector<std::unique_ptr<Predicate>> predicates;
 };
 
 struct Argument : Node {
@@ -115,72 +126,69 @@ struct Argument : Node {
   std::string name;
 };
 
-struct PredicateEvaluation : Node {
+struct Condition : Node {
+protected:
+  Condition(const location &loc) : Node{loc} {}
+};
+
+struct PredicateEvaluation : Condition {
   PredicateEvaluation(const location &loc, const std::string &name,
-                      std::vector<Argument> &&arguments)
-      : Node{loc}, name{name}, arguments{std::move(arguments)} {}
+                      std::vector<std::unique_ptr<Argument>> &&arguments)
+      : Condition{loc}, name{name}, arguments{std::move(arguments)} {}
 
   std::string name;
-  std::vector<Argument> arguments;
+  std::vector<std::unique_ptr<Argument>> arguments;
 };
 
-struct Condition;
-
-struct Conjunction : Node {
-  Conjunction(const location &loc, std::vector<Condition> &&conditions)
-      : Node{loc}, conditions{std::move(conditions)} {}
-
-  std::vector<Condition> conditions;
+struct CompoundCondition : Condition {
+protected:
+  CompoundCondition(const location &loc) : Condition{loc} {}
 };
 
-struct Disjunction : Node {
-  Disjunction(const location &loc, std::vector<Condition> &&conditions)
-      : Node{loc}, conditions{std::move(conditions)} {}
+struct Conjunction : CompoundCondition {
+  Conjunction(const location &loc,
+              std::vector<std::unique_ptr<Condition>> &&conditions)
+      : CompoundCondition{loc}, conditions{std::move(conditions)} {}
 
-  std::vector<Condition> conditions;
+  std::vector<std::unique_ptr<Condition>> conditions;
 };
 
-struct Negation : Node {
+struct Disjunction : CompoundCondition {
+  Disjunction(const location &loc,
+              std::vector<std::unique_ptr<Condition>> &&conditions)
+      : CompoundCondition{loc}, conditions{std::move(conditions)} {}
+
+  std::vector<std::unique_ptr<Condition>> conditions;
+};
+
+struct Negation : CompoundCondition {
   Negation(const location &loc, std::unique_ptr<Condition> &&condition)
-      : Node{loc}, condition{std::move(condition)} {}
+      : CompoundCondition{loc}, condition{std::move(condition)} {}
 
   std::unique_ptr<Condition> condition;
 };
 
-struct Condition : Node {
-  template <typename ConditionType>
-  Condition(const location &loc, std::unique_ptr<ConditionType> &&condition)
-      : Node{loc}, condition{std::move(condition)} {}
-
-  std::variant<std::unique_ptr<PredicateEvaluation>,
-               std::unique_ptr<Conjunction>, std::unique_ptr<Disjunction>,
-               std::unique_ptr<Negation>>
-      condition;
-};
-
-struct ActionDef : Node {
+struct ActionDef : DomainElement {
   ActionDef(const location &loc, const std::string &name,
-            std::vector<ParameterList> &&parameters,
+            std::vector<std::unique_ptr<ParameterList>> &&parameters,
             std::unique_ptr<Condition> &&precondition,
             std::unique_ptr<Condition> &&effect)
-      : Node{loc}, name{name}, parameters{std::move(parameters)},
+      : DomainElement{loc}, name{name}, parameters{std::move(parameters)},
         precondition{std::move(precondition)}, effect{std::move(effect)} {}
 
   std::string name;
-  std::vector<ParameterList> parameters;
+  std::vector<std::unique_ptr<ParameterList>> parameters;
   std::unique_ptr<Condition> precondition;
   std::unique_ptr<Condition> effect;
 };
 
 struct Domain : Node {
-  using Element = std::variant<RequirementsDef, TypesDef, ConstantsDef,
-                               PredicatesDef, ActionDef>;
   Domain(const location &loc, const std::string &name,
-         std::vector<Element> &&domain_body)
+         std::vector<std::unique_ptr<DomainElement>> &&domain_body)
       : Node{loc}, name{name}, domain_body{std::move(domain_body)} {}
 
   std::string name;
-  std::vector<Element> domain_body;
+  std::vector<std::unique_ptr<DomainElement>> domain_body;
 };
 
 class AST {
@@ -188,19 +196,24 @@ public:
   AST(const AST &) = delete;
   AST(AST &&other)
       : domain_file{other.domain_file},
-        problem_file{other.problem_file}, domain{std::move(other.domain)} {
+        problem_file{other.problem_file}, domain_{std::move(other.domain_)} {
     other.domain_file = "";
     other.problem_file = "";
   }
-  AST(const std::string &domain_file, const std::string &problem_file,
-      std::unique_ptr<Domain> &&domain)
-      : domain_file{domain_file}, problem_file{problem_file}, domain{std::move(
-                                                                  domain)} {}
+  AST(const std::string &domain_file, const std::string &problem_file)
+      : domain_file{domain_file}, problem_file{problem_file} {}
+
+  void set_domain(std::unique_ptr<Domain> &&domain) {
+    domain_ = std::move(domain);
+  }
+
+  const Domain *get_domain() const { return domain_.get(); }
 
   std::string domain_file;
   std::string problem_file;
 
-  std::unique_ptr<Domain> domain;
+private:
+  std::unique_ptr<Domain> domain_;
 };
 
 } // namespace ast

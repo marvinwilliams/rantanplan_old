@@ -14,6 +14,7 @@
 
 %code top {
   #include "parser.hxx"
+  #include "location.hxx"
   #include "scanner.h"
   #include "ast.h"
   #include <iostream>
@@ -66,22 +67,23 @@ END 0         "end of file"
 
 %type
 <std::unique_ptr<ast::Domain>> domain-def
-<std::vector<ast::Domain::Element>> domain-body
-<std::unique_ptr<ast::Domain::Element>> require-def
-<std::vector<ast::Requirement>> require-list
-types-def
-constants-def
-predicates-def
-predicate-list
-predicate-def
-action-def
-action-body
-precondition-def
-precondition-body
-precondition-list
-effect-def
-effect-body
-effect-list
+<std::vector<std::unique_ptr<ast::DomainElement>>> domain-body
+<std::unique_ptr<ast::RequirementsDef>> require-def
+<std::vector<std::unique_ptr<ast::Requirement>>> require-list
+<std::unique_ptr<ast::TypesDef>> types-def
+<std::unique_ptr<ast::ConstantsDef>> constants-def
+<std::unique_ptr<ast::PredicatesDef>> predicates-def
+<std::vector<std::unique_ptr<ast::Predicate>>> predicate-list
+<std::unique_ptr<ast::Predicate>> predicate-def
+<std::unique_ptr<ast::ActionDef>> action-def
+<std::pair<std::unique_ptr<ast::Condition>, std::unique_ptr<ast::Condition>>>
+  action-body
+<std::unique_ptr<ast::Condition>> precondition-def
+<std::unique_ptr<ast::Condition>> precondition-body
+<std::vector<std::unique_ptr<ast::Condition>>> precondition-list
+<std::unique_ptr<ast::Condition>> effect-def
+<std::unique_ptr<ast::Condition>> effect-body
+<std::vector<std::unique_ptr<ast::Condition>>> effect-list
 problem-def
 problem-body
 object-def
@@ -119,21 +121,25 @@ domain-body:
       $$ = std::move($1);
     }
   | domain-body types-def {
+      $1.push_back(std::move($[types-def]));
       $$ = std::move($1);
     }
   | domain-body constants-def {
+      $1.push_back(std::move($[constants-def]));
       $$ = std::move($1);
     }
   | domain-body predicates-def {
+      $1.push_back(std::move($[predicates-def]));
       $$ = std::move($1);
     }
   | domain-body action-def {
+      $1.push_back(std::move($[action-def]));
       $$ = std::move($1);
     }
 ;
 require-def:
     "(" REQUIREMENTS require-list ")" {
-      $$ = ast::Domain::Element{ast::RequirementsDef{@$, std::move($[require-list])}};
+      $$ = std::make_unique<ast::RequirementsDef>(@$, std::move($[require-list]));
     }
 ;
 require-list:
@@ -146,7 +152,16 @@ require-list:
     }
 ;
 types-def:
-    "(" TYPES typed-name-list[types] ")" {
+    "(" TYPES typed-name-list ")" {
+      std::vector<std::unique_ptr<ast::TypeList>> type_lists;
+      for (auto & typed_list : $[typed-name-list]) {
+        std::vector<std::unique_ptr<ast::Type>> type_list;
+        for (auto & type : std::get<0>(typed_list)) {
+          type_list.push_back(std::make_unique<ast::Type>(ast::Type(@$, type)));
+        }
+        type_lists.push_back(std::make_unique<ast::TypeList>(@$, std::move(type_list), std::make_unique<ast::Type>(@$, std::get<1>(typed_list))));
+      }
+      $$ = std::make_unique<ast::TypesDef>(@$, std::move(type_lists));
     }
 ;
 constants-def:
@@ -250,7 +265,7 @@ goal-def:
 typed-name-list:
     name-list {
     }
-  | name-list[types] NAME[type] "-" NAME[supertype] typed-name-list[typelist] {
+  | name-list[types] NAME[type] "-" NAME[supertype] typed-name-list[type-list] {
     }
 ;
 typed-var-list:
@@ -278,7 +293,7 @@ param-list:
 ;
 %%
 
-void parser::Parser::error (const location_type& l, const std::string& m)
+void parser::Parser::error (const location& loc, const std::string& msg)
 {
-  std::cerr << l << ": " << m << '\n';
+  std::cerr << loc << ": " << msg << '\n';
 }

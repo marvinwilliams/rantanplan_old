@@ -3,6 +3,7 @@
 
 #undef yyFlexLexer
 #include "parser.hxx"
+#include "location.hxx"
 #include <FlexLexer.h>
 #include <fstream>
 #include <string>
@@ -12,8 +13,6 @@ namespace parser {
 
 class Scanner : public yyFlexLexer {
 public:
-  using location_type = typename Parser::location_type;
-
   Scanner(const std::string &domain_file, const std::string &problem_file,
           std::istream *domain_stream, std::istream *problem_stream);
 
@@ -27,7 +26,7 @@ private:
   std::istream *domain_stream_;
   std::istream *problem_stream_;
 
-  location_type location_;
+  location loc_;
 };
 
 } // namespace parser
