@@ -57,7 +57,7 @@ NAME [[:alpha:]][[:alnum:]_\-]*
 :{NAME}                 return parser::Parser::make_KEYWORD(YYText(), loc_);
 
 <switch_stream><<EOF>>  {
-                          loc_.initialize(&problem_file_);
+                          loc_.initialize(problem_file_);
                           switch_streams(problem_stream_);
                           BEGIN(problem);
                         }
@@ -76,13 +76,13 @@ NAME [[:alpha:]][[:alnum:]_\-]*
 
 %%
 
-parser::Scanner::Scanner(const std::string &domain_file,
-                         const std::string &problem_file,
+parser::Scanner::Scanner(std::string *domain_file,
+                         std::string *problem_file,
                          std::istream *domain_stream,
                          std::istream *problem_stream)
     : yyFlexLexer{domain_stream}, domain_file_{domain_file}, problem_file_{problem_file},
       domain_stream_{domain_stream}, problem_stream_{problem_stream} {
-  loc_.initialize(&domain_file_);
+  loc_.initialize(domain_file_);
   BEGIN(domain);
 }
 

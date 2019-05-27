@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS "-std=c++17")
 add_compile_options(
   -Wall
   -Wextra
-  -Wshadow
+  #-Wshadow
   -Wnon-virtual-dtor
   -Wcast-align
   -Wunused

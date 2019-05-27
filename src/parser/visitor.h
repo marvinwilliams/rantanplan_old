@@ -16,17 +16,12 @@ public:
     if (!ast.get_domain()) {
       return true;
     }
-    if (!get_derived()->traverse(*ast.get_domain())) {
-      return false;
-    }
-    return get_derived()->visit(ast);
+    return get_derived()->traverse(*ast.get_domain()) &&
+           get_derived()->visit(ast);
   }
 
   bool traverse(const Domain &domain) {
-    if (!traverse_(domain.domain_body)) {
-      return false;
-    }
-    return get_derived()->visit(domain);
+    return traverse_(domain.domain_body) && get_derived()->visit(domain);
   }
 
   bool traverse(const DomainElement &domain_element) {
@@ -69,26 +64,18 @@ public:
   }
 
   bool traverse(const RequirementsDef &requirements_def) {
-    if (!traverse_(requirements_def.requirements)) {
-      return false;
-    }
-    return get_derived()->visit(requirements_def);
+    return traverse_(requirements_def.requirements) &&
+           get_derived()->visit(requirements_def);
   }
 
   bool traverse(const Type &type) { return get_derived()->visit(type); }
 
   bool traverse(const TypeList &type_list) {
-    if (!traverse_(type_list.types)) {
-      return false;
-    }
-    return get_derived()->visit(type_list);
+    return traverse_(type_list.types) && get_derived()->visit(type_list);
   }
 
   bool traverse(const TypesDef &types_def) {
-    if (!traverse_(types_def.type_lists)) {
-      return false;
-    }
-    return get_derived()->visit(types_def);
+    return traverse_(types_def.type_lists) && get_derived()->visit(types_def);
   }
 
   bool traverse(const Constant &constant) {
@@ -96,24 +83,17 @@ public:
   }
 
   bool traverse(const ConstantList &constant_list) {
-    if (!traverse_(constant_list.constants)) {
-      return false;
-    }
-    return get_derived()->visit(constant_list);
+    return traverse_(constant_list.constants) &&
+           get_derived()->visit(constant_list);
   }
 
   bool traverse(const ConstantsDef &constants_def) {
-    if (!traverse_(constants_def.constant_lists)) {
-      return false;
-    }
-    return get_derived()->visit(constants_def);
+    return traverse_(constants_def.constant_lists) &&
+           get_derived()->visit(constants_def);
   }
 
   bool traverse(const Predicate &predicate) {
-    if (!traverse_(predicate.parameters)) {
-      return false;
-    }
-    return get_derived()->visit(predicate);
+    return traverse_(predicate.parameters) && get_derived()->visit(predicate);
   }
 
   bool traverse(const Parameter &parameter) {
@@ -121,17 +101,13 @@ public:
   }
 
   bool traverse(const ParameterList &parameter_list) {
-    if (!traverse_(parameter_list.parameters)) {
-      return false;
-    }
-    return get_derived()->visit(parameter_list);
+    return traverse_(parameter_list.parameters) &&
+           get_derived()->visit(parameter_list);
   }
 
   bool traverse(const PredicatesDef &predicates_def) {
-    if (!traverse_(predicates_def.predicates)) {
-      return false;
-    }
-    return get_derived()->visit(predicates_def);
+    return traverse_(predicates_def.predicates) &&
+           get_derived()->visit(predicates_def);
   }
 
   bool traverse(const Condition &condition) {
@@ -156,10 +132,7 @@ public:
   }
 
   bool traverse(const PredicateEvaluation &predicate) {
-    if (!traverse_(predicate.arguments)) {
-      return false;
-    }
-    return get_derived()->visit(predicate);
+    return traverse_(predicate.arguments) && get_derived()->visit(predicate);
   }
 
   bool traverse(const CompoundCondition &condition) {
@@ -186,24 +159,18 @@ public:
   }
 
   bool traverse(const Conjunction &conjunction) {
-    if (!traverse_(conjunction.conditions)) {
-      return false;
-    }
-    return get_derived()->visit(conjunction);
+    return traverse_(conjunction.conditions) &&
+           get_derived()->visit(conjunction);
   }
 
   bool traverse(const Disjunction &disjunction) {
-    if (!traverse_(disjunction.conditions)) {
-      return false;
-    }
-    return get_derived()->visit(disjunction);
+    return traverse_(disjunction.conditions) &&
+           get_derived()->visit(disjunction);
   }
 
   bool traverse(const Negation &negation) {
-    if (!get_derived()->traverse(*negation.condition)) {
-      return false;
-    }
-    return get_derived()->visit(negation);
+    return get_derived()->traverse(*negation.condition) &&
+           get_derived()->visit(negation);
   }
 
   bool traverse(const ActionDef &action_def) {

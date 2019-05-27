@@ -3,6 +3,7 @@
 
 #include "location.hxx"
 #include <memory>
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -47,9 +48,11 @@ struct TypeList : Node {
   TypeList(const location &loc, std::vector<std::unique_ptr<Type>> &&types,
            std::unique_ptr<Type> &&supertype)
       : Node{loc}, types{std::move(types)}, supertype{std::move(supertype)} {}
+  TypeList(const location &loc, std::vector<std::unique_ptr<Type>> &&types)
+      : Node{loc}, types{std::move(types)} {}
 
   std::vector<std::unique_ptr<Type>> types;
-  std::unique_ptr<Type> supertype;
+  std::optional<std::unique_ptr<Type>> supertype;
 };
 
 struct TypesDef : DomainElement {
@@ -72,9 +75,12 @@ struct ConstantList : Node {
                std::vector<std::unique_ptr<Constant>> &&constants,
                std::unique_ptr<Type> &&type)
       : Node{loc}, constants{std::move(constants)}, type{std::move(type)} {}
+  ConstantList(const location &loc,
+               std::vector<std::unique_ptr<Constant>> &&constants)
+      : Node{loc}, constants{std::move(constants)} {}
 
   std::vector<std::unique_ptr<Constant>> constants;
-  std::unique_ptr<Type> type;
+  std::optional<std::unique_ptr<Type>> type;
 };
 
 struct ConstantsDef : DomainElement {
@@ -97,9 +103,12 @@ struct ParameterList : Node {
                 std::vector<std::unique_ptr<Parameter>> &&parameters,
                 std::unique_ptr<Type> &&type)
       : Node{loc}, parameters{std::move(parameters)}, type{std::move(type)} {}
+  ParameterList(const location &loc,
+                std::vector<std::unique_ptr<Parameter>> &&parameters)
+      : Node{loc}, parameters{std::move(parameters)} {}
 
   std::vector<std::unique_ptr<Parameter>> parameters;
-  std::unique_ptr<Type> type;
+  std::optional<std::unique_ptr<Type>> type;
 };
 
 struct Predicate : Node {
@@ -129,6 +138,10 @@ struct Argument : Node {
 struct Condition : Node {
 protected:
   Condition(const location &loc) : Node{loc} {}
+};
+
+struct EmptyCondition : Condition {
+  EmptyCondition(const location &loc) : Condition{loc} {}
 };
 
 struct PredicateEvaluation : Condition {
