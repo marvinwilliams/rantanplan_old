@@ -1,7 +1,7 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
-#include "ast.h"
+#include "ast_variant.h"
 #include "parser.hxx"
 #include "scanner.h"
 #include <exception>

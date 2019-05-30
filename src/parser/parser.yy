@@ -5,7 +5,7 @@
 %code requires {
   #include <optional>
   #include "location.hxx"
-  #include "ast.h"
+  #include "ast_variant.h"
 
   namespace parser {
 
@@ -38,7 +38,7 @@
   #include "parser.hxx"
   #include "location.hxx"
   #include "scanner.h"
-  #include "ast.h"
+  #include "ast_variant.h"
   #include <iostream>
   #undef yylex
   #define yylex scanner.lex
@@ -117,7 +117,7 @@ END 0         "end of file"
 
 %type
 <std::unique_ptr<ast::Domain>> domain-def
-<std::vector<std::unique_ptr<ast::DomainElement>>> domain-body
+<std::vector<ast::DomainElement>> domain-body
 <std::unique_ptr<ast::RequirementsDef>> require-def
 <std::vector<std::unique_ptr<ast::Requirement>>> require-list
 <std::unique_ptr<ast::TypesDef>> types-def
@@ -243,7 +243,7 @@ action-body:
 ;
 precondition-def:
     %empty {
-      $$ = std::make_unique<ast::EmptyCondition>(@$);
+      $$ = std::make_unique<ast::Condition>(@$);
     }
   | PRECONDITION "(" precondition-body ")" {
       $$ = std::move($[precondition-body]);
@@ -251,22 +251,22 @@ precondition-def:
 ;
 precondition-body:
     %empty {
-      $$ = std::make_unique<ast::EmptyCondition>(@$);
+      $$ = std::make_unique<ast::Condition>(@$);
     }
   | NAME param-list {
-      $$ = std::make_unique<ast::PredicateEvaluation>(@$, $[NAME], std::move($[param-list]));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::PredicateEvaluation>(@$, $[NAME], std::move($[param-list])));
     }
   | "=" param-list {
-      $$ = std::make_unique<ast::PredicateEvaluation>(@$, "=", std::move($[param-list]));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::PredicateEvaluation>(@$, "=", std::move($[param-list])));
     }
   | "and" precondition-list {
-      $$ = std::make_unique<ast::Conjunction>(@$, std::move($[precondition-list]));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::Conjunction>(@$, std::move($[precondition-list])));
     }
   | "or" precondition-list {
-      $$ = std::make_unique<ast::Disjunction>(@$, std::move($[precondition-list]));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::Disjunction>(@$, std::move($[precondition-list])));
     }
   | "not" "(" precondition-body[nested-body] ")" {
-      $$ = std::make_unique<ast::Negation>(@$, std::move($[nested-body]));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::Negation>(@$, std::move($[nested-body])));
     }
 ;
 precondition-list:
@@ -278,7 +278,7 @@ precondition-list:
 ;
 effect-def:
     %empty {
-      $$ = std::make_unique<ast::EmptyCondition>(@$);
+      $$ = std::make_unique<ast::Condition>(@$);
     }
   | EFFECT "(" effect-body ")" {
       $$ = std::move($[effect-body]);
@@ -286,17 +286,17 @@ effect-def:
 ;
 effect-body:
     %empty {
-      $$ = std::make_unique<ast::EmptyCondition>(@$);
+      $$ = std::make_unique<ast::Condition>(@$);
     }
   | NAME param-list {
-      $$ = std::make_unique<ast::PredicateEvaluation>(@$, $[NAME], std::move($[param-list]));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::PredicateEvaluation>(@$, $[NAME], std::move($[param-list])));
     }
   | "and" effect-list {
-      $$ = std::make_unique<ast::Conjunction>(@$, std::move($[effect-list]));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::Conjunction>(@$, std::move($[effect-list])));
     }
   | "not" "(" NAME param-list ")" {
-      auto condition = std::make_unique<ast::PredicateEvaluation>(@[NAME] + @[param-list], $[NAME], std::move($[param-list]));
-      $$ = std::make_unique<ast::Negation>(@$ , std::move(condition));
+      auto condition = std::make_unique<ast::Condition>(@$, std::make_unique<ast::PredicateEvaluation>(@$, $[NAME], std::move($[param-list])));
+      $$ = std::make_unique<ast::Condition>(@$, std::make_unique<ast::Negation>(@$, std::move(condition)));
     }
 ;
 effect-list:

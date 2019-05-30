@@ -2,7 +2,7 @@
 #include "parser/driver.h"
 #include "parser/parser.hxx"
 #include "parser/scanner.h"
-#include "parser/visitor.h"
+#include "parser/visitor_variant.h"
 #include <iostream>
 
 class MyVisitor : public parser::ast::Visitor<MyVisitor> {
@@ -79,20 +79,16 @@ public:
     std::cout << "PredicateEvaluation at " << PredicateEvaluation.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::CompoundCondition &CompoundCondition) {
-    std::cout << "CompoundCondition at " << CompoundCondition.loc << '\n';
-    return true;
-  }
   bool visit(const parser::ast::Conjunction &Conjunction) {
     std::cout << "Conjunction at " << Conjunction.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Disjunction &Disjunction) {
-    std::cout << "Disjunction at " << Disjunction.loc << '\n';
+  bool visit(const parser::ast::Disjunction &disjunction) {
+    std::cout << "Disjunction at " << disjunction.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Negation &Negation) {
-    std::cout << "Negation at " << Negation.loc << '\n';
+  bool visit(const parser::ast::Negation &negation) {
+    std::cout << "Negation at " << negation.loc << '\n';
     return true;
   }
   bool visit(const parser::ast::ActionDef &ActionDef) {
