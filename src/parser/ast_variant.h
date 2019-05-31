@@ -34,29 +34,35 @@ struct RequirementsDef : Node {
   std::vector<std::unique_ptr<Requirement>> requirements;
 };
 
+struct Name : Node {
+  Name(const location &loc, const std::string &name) : Node{loc}, name{name} {}
+
+  std::string name;
+};
+
 struct Type : Node {
   Type(const location &loc, const std::string &name) : Node{loc}, name{name} {}
 
   std::string name;
 };
 
-struct TypeList : Node {
-  TypeList(const location &loc, std::vector<std::unique_ptr<Type>> &&types,
-           std::unique_ptr<Type> &&supertype)
-      : Node{loc}, types{std::move(types)}, supertype{std::move(supertype)} {}
-  TypeList(const location &loc, std::vector<std::unique_ptr<Type>> &&types)
-      : Node{loc}, types{std::move(types)} {}
+struct TypedNameList : Node {
+  TypedNameList(const location &loc, std::vector<std::unique_ptr<Name>> &&list,
+                std::unique_ptr<Type> &&type)
+      : Node{loc}, list{std::move(list)}, type{std::move(type)} {}
+  TypedNameList(const location &loc, std::vector<std::unique_ptr<Name>> &&list)
+      : Node{loc}, list{std::move(list)} {}
 
-  std::vector<std::unique_ptr<Type>> types;
-  std::optional<std::unique_ptr<Type>> supertype;
+  std::vector<std::unique_ptr<Name>> list;
+  std::optional<std::unique_ptr<Type>> type;
 };
 
 struct TypesDef : Node {
   TypesDef(const location &loc,
-           std::vector<std::unique_ptr<TypeList>> &&type_lists)
+           std::vector<std::unique_ptr<TypedNameList>> &&type_lists)
       : Node{loc}, type_lists{std::move(type_lists)} {}
 
-  std::vector<std::unique_ptr<TypeList>> type_lists;
+  std::vector<std::unique_ptr<TypedNameList>> type_lists;
 };
 
 struct Constant : Node {
@@ -192,16 +198,11 @@ struct ActionDef : Node {
   std::unique_ptr<Condition> effect;
 };
 
-using DomainElement =
-    std::variant<std::unique_ptr<RequirementsDef>, std::unique_ptr<TypesDef>,
-                 std::unique_ptr<ConstantsDef>, std::unique_ptr<PredicatesDef>,
-                 std::unique_ptr<ActionDef>>;
-
-struct DomainBody : Node {
-  DomainBody(const location & loc, std::unique_ptr<DomainElement>&& element
-}
-
 struct Domain : Node {
+  using DomainElement =
+      std::variant<std::unique_ptr<RequirementsDef>, std::unique_ptr<TypesDef>,
+                   std::unique_ptr<ConstantsDef>,
+                   std::unique_ptr<PredicatesDef>, std::unique_ptr<ActionDef>>;
   Domain(const location &loc, const std::string &name,
          std::vector<DomainElement> &&domain_body)
       : Node{loc}, name{name}, domain_body{std::move(domain_body)} {}
@@ -234,6 +235,64 @@ public:
 private:
   std::unique_ptr<Domain> domain_;
 };
+
+namespace detail {
+
+template <typename ElementType> struct GenericElement : Node {
+  GenericElement(const location &loc, ElementType &&element)
+      : Node{loc}, element{std::move(element)} {}
+
+  ElementType element;
+};
+
+template <typename ElementType> struct GenericList : Node {
+  GenericList(const location &loc,
+              std::vector<GenericElement<ElementType>> &&elements)
+      : Node{loc}, elements{std::move(elements)} {}
+
+  std::vector<GenericElement<ElementType>> elements;
+};
+
+template <typename T1, typename T2> struct GenericPair : Node {
+  GenericPair(const location &loc, T1 &&first, T2 &&second)
+      : Node{loc}, first{std::move(first)}, second{std::move(second)} {}
+
+  T1 first;
+  T2 second;
+};
+
+template <typename ListType, typename ElemType>
+std::vector<std::unique_ptr<ListType>>
+convert_list_of_typed_lists(const ListOfTypedLists &list) {
+  std::vector<std::unique_ptr<ListType>> converted_list;
+  for (auto &typed_list : list.typed_lists) {
+    std::vector<std::unique_ptr<ElemType>> inner_list;
+    for (auto &elem : typed_list.string_list.elements) {
+      inner_list.push_back(
+          std::make_unique<ElemType>(ElemType(elem.first, elem.second)));
+    }
+    converted_list.push_back(std::make_unique<ListType>(
+        typed_list.loc, std::move(inner_list),
+        std::make_unique<ast::Type>(typed_list.type.loc,
+                                    typed_list.type.name)));
+  }
+  std::vector<std::unique_ptr<ElemType>> untyped_list;
+  for (auto &elem : list.untyped_list.elements) {
+    untyped_list.push_back(
+        std::make_unique<ElemType>(ElemType(elem.first, elem.second)));
+  }
+  converted_list.push_back(std::make_unique<ListType>(list.untyped_list.loc,
+                                                      std::move(untyped_list)));
+  return converted_list;
+}
+
+} // namespace detail
+
+using StringList = detail::GenericList<std::string>;
+using TypedList =
+    detail::GenericPair<StringList,
+                        std::optional<detail::GenericElement<std::string>>>;
+using ListOfTypedLists = detail::GenericList<TypedList>;
 
 } // namespace ast
 

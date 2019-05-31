@@ -3,31 +3,11 @@
 %skeleton "lalr1.cc"
 
 %code requires {
-  #include <optional>
   #include "location.hxx"
   #include "ast_variant.h"
 
   namespace parser {
-
   class Scanner;
-
-  struct StringList {
-    location loc;
-    std::vector<std::pair<location, std::string>> elements;
-  };
-
-  struct TypedList {
-    location loc;
-    StringList string_list;
-    ast::Type type;
-  };
-
-  struct ListOfTypedLists {
-    location loc;
-    std::vector<TypedList> typed_lists;
-    StringList untyped_list;
-  };
-
   }
 }
 
@@ -42,34 +22,6 @@
   #include <iostream>
   #undef yylex
   #define yylex scanner.lex
-
-  namespace parser {
-
-  template <typename ListType, typename ElemType>
-  std::vector<std::unique_ptr<ListType>>
-  convert_list_of_typed_lists(const ListOfTypedLists &list) {
-    std::vector<std::unique_ptr<ListType>> converted_list;
-    for (auto &typed_list : list.typed_lists) {
-      std::vector<std::unique_ptr<ElemType>> inner_list;
-      for (auto &elem : typed_list.string_list.elements) {
-        inner_list.push_back(
-            std::make_unique<ElemType>(ElemType(elem.first, elem.second)));
-      }
-      converted_list.push_back(std::make_unique<ListType>(
-          typed_list.loc, std::move(inner_list),
-          std::make_unique<ast::Type>(typed_list.type.loc, typed_list.type.name)));
-    }
-    std::vector<std::unique_ptr<ElemType>> untyped_list;
-    for (auto &elem : list.untyped_list.elements) {
-      untyped_list.push_back(
-          std::make_unique<ElemType>(ElemType(elem.first, elem.second)));
-    }
-    converted_list.push_back(std::make_unique<ListType>(
-        list.untyped_list.loc, std::move(untyped_list)));
-    return converted_list;
-  }
-
-  }
 }
 
 %defines
