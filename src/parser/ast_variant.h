@@ -1,11 +1,11 @@
 #ifndef AST_H
 #define AST_H
 
-#include "location.hxx"
 #include <memory>
 #include <optional>
 #include <variant>
 #include <vector>
+#include "location.hxx"
 
 namespace parser {
 
@@ -15,9 +15,55 @@ struct Node {
   location loc;
   virtual ~Node() {}
 
-protected:
+ protected:
   Node(const location &loc) : loc{loc} {}
 };
+
+struct Name : Node {
+  Name(const location &loc, std::string name) : Node{loc}, name{name} {}
+
+  std::string name;
+};
+
+struct Variable : Node {
+  Variable(const location &loc, std::string variable)
+      : Node{loc}, variable{variable} {}
+
+  std::string variable;
+};
+
+using Argument = std::variant<Name, Variable>;
+
+template <typename T>
+struct List : Node {
+  List(const location &loc, std::vector<T> &&names)
+      : Node{loc}, names{std::move(names)} {}
+
+  std::vector<T> names;
+};
+
+template <typename T>
+struct SingleTypeList : Node {
+  SingleTypeList(const location &loc, List<T> &&list,
+                 std::optional<Name> &&type = std::nullopt)
+      : Node{loc}, list{std::move(list)}, type{type} {}
+
+  List<T> list;
+  std::optional<Name> type;
+};
+
+template <typename T>
+struct TypedList : Node {
+  TypedList(const location &loc, std::vector<SingleTypeList<T>> &&lists)
+      : Node{loc}, lists{std::move(lists)} {}
+
+  std::vector<SingleTypeList<T>> lists;
+};
+
+using ArgumentList = List<Variable>;
+using ParameterList = TypedList<Name>;
+using TypeList = TypedList<Name>;
+using ConstantList = TypedList<Name>;
 
 struct Requirement : Node {
   Requirement(const location &loc, const std::string &name)
@@ -34,70 +80,27 @@ struct RequirementsDef : Node {
   std::vector<std::unique_ptr<Requirement>> requirements;
 };
 
-struct Name : Node {
-  Name(const location &loc, const std::string &name) : Node{loc}, name{name} {}
-
-  std::string name;
-};
-
-struct Type : Node {
-  Type(const location &loc, const std::string &name) : Node{loc}, name{name} {}
-
-  std::string name;
-};
-
-struct TypedNameList : Node {
-  TypedNameList(const location &loc, std::vector<std::unique_ptr<Name>> &&list,
-                std::unique_ptr<Type> &&type)
-      : Node{loc}, list{std::move(list)}, type{std::move(type)} {}
-  TypedNameList(const location &loc, std::vector<std::unique_ptr<Name>> &&list)
-      : Node{loc}, list{std::move(list)} {}
-
-  std::vector<std::unique_ptr<Name>> list;
-  std::optional<std::unique_ptr<Type>> type;
-};
-
 struct TypesDef : Node {
-  TypesDef(const location &loc,
-           std::vector<std::unique_ptr<TypedNameList>> &&type_lists)
-      : Node{loc}, type_lists{std::move(type_lists)} {}
+  TypesDef(const location &loc, std::unique_ptr<TypedList> &&type_list)
+      : Node{loc}, type_list{std::move(type_list)} {}
 
-  std::vector<std::unique_ptr<TypedNameList>> type_lists;
-};
-
-struct Constant : Node {
-  Constant(const location &loc, const std::string &name)
-      : Node{loc}, name{name} {}
-
-  std::string name;
-};
-
-struct ConstantList : Node {
-  ConstantList(const location &loc,
-               std::vector<std::unique_ptr<Constant>> &&constants,
-               std::unique_ptr<Type> &&type)
-      : Node{loc}, constants{std::move(constants)}, type{std::move(type)} {}
-  ConstantList(const location &loc,
-               std::vector<std::unique_ptr<Constant>> &&constants)
-      : Node{loc}, constants{std::move(constants)} {}
-
-  std::vector<std::unique_ptr<Constant>> constants;
-  std::optional<std::unique_ptr<Type>> type;
+  std::unique_ptr<TypedList> type_list;
 };
 
 struct ConstantsDef : Node {
-  ConstantsDef(const location &loc,
-               std::vector<std::unique_ptr<ConstantList>> &&constant_lists)
-      : Node{loc}, constant_lists{std::move(constant_lists)} {}
+  ConstantsDef(const location &loc, std::unique_ptr<TypedList> &&constant_list)
+      : Node{loc}, constant_list{std::move(constant_list)} {}
 
-  std::vector<std::unique_ptr<ConstantList>> constant_lists;
+  std::unique_ptr<TypedList> constant_list;
 };
 
-struct Parameter : Node {
-  Parameter(const location &loc, const std::string &name)
-      : Node{loc}, name{name} {}
+struct ParameterList : Node {
+  TypedNameList(const location &loc, std::vector<NameList> &&name_lists,
+                std::optional<Name> &&type = std::nullopt)
+      : Node{loc}, name_lists{std::move(name_lists)}, type{type} {}
 
-  std::string name;
+  std::vector<NameList> name_lists;
+  std::optional<Name> type;
 };
 
 struct ParameterList : Node {
@@ -105,9 +108,6 @@ struct ParameterList : Node {
                 std::vector<std::unique_ptr<Parameter>> &&parameters,
                 std::unique_ptr<Type> &&type)
       : Node{loc}, parameters{std::move(parameters)}, type{std::move(type)} {}
-  ParameterList(const location &loc,
-                std::vector<std::unique_ptr<Parameter>> &&parameters)
-      : Node{loc}, parameters{std::move(parameters)} {}
 
   std::vector<std::unique_ptr<Parameter>> parameters;
   std::optional<std::unique_ptr<Type>> type;
@@ -189,8 +189,11 @@ struct ActionDef : Node {
             std::vector<std::unique_ptr<ParameterList>> &&parameters,
             std::unique_ptr<Condition> &&precondition,
             std::unique_ptr<Condition> &&effect)
-      : Node{loc}, name{name}, parameters{std::move(parameters)},
-        precondition{std::move(precondition)}, effect{std::move(effect)} {}
+      : Node{loc},
+        name{name},
+        parameters{std::move(parameters)},
+        precondition{std::move(precondition)},
+        effect{std::move(effect)} {}
 
   std::string name;
   std::vector<std::unique_ptr<ParameterList>> parameters;
@@ -212,11 +215,12 @@ struct Domain : Node {
 };
 
 class AST {
-public:
+ public:
   AST(const AST &) = delete;
   AST(AST &&other)
       : domain_file{other.domain_file},
-        problem_file{other.problem_file}, domain_{std::move(other.domain_)} {
+        problem_file{other.problem_file},
+        domain_{std::move(other.domain_)} {
     other.domain_file = "";
     other.problem_file = "";
   }
@@ -232,20 +236,22 @@ public:
   std::string domain_file;
   std::string problem_file;
 
-private:
+ private:
   std::unique_ptr<Domain> domain_;
 };
 
 namespace detail {
 
-template <typename ElementType> struct GenericElement : Node {
+template <typename ElementType>
+struct GenericElement : Node {
   GenericElement(const location &loc, ElementType &&element)
       : Node{loc}, element{std::move(element)} {}
 
   ElementType element;
 };
 
-template <typename ElementType> struct GenericList : Node {
+template <typename ElementType>
+struct GenericList : Node {
   GenericList(const location &loc,
               std::vector<GenericElement<ElementType>> &&elements)
       : Node{loc}, elements{std::move(elements)} {}
@@ -253,7 +259,8 @@ template <typename ElementType> struct GenericList : Node {
   std::vector<GenericElement<ElementType>> elements;
 };
 
-template <typename T1, typename T2> struct GenericPair : Node {
+template <typename T1, typename T2>
+struct GenericPair : Node {
   GenericPair(const location &loc, T1 &&first, T2 &&second)
       : Node{loc}, first{std::move(first)}, second{std::move(second)} {}
 
@@ -262,8 +269,8 @@ template <typename T1, typename T2> struct GenericPair : Node {
 };
 
 template <typename ListType, typename ElemType>
-std::vector<std::unique_ptr<ListType>>
-convert_list_of_typed_lists(const ListOfTypedLists &list) {
+std::vector<std::unique_ptr<ListType>> convert_list_of_typed_lists(
+    const ListOfTypedLists &list) {
   std::vector<std::unique_ptr<ListType>> converted_list;
   for (auto &typed_list : list.typed_lists) {
     std::vector<std::unique_ptr<ElemType>> inner_list;
@@ -286,7 +293,7 @@ convert_list_of_typed_lists(const ListOfTypedLists &list) {
   return converted_list;
 }
 
-} // namespace detail
+}  // namespace detail
 
 using StringList = detail::GenericList<std::string>;
 using TypedList =
@@ -294,8 +301,8 @@ using TypedList =
                         std::optional<detail::GenericElement<std::string>>>;
 using ListOfTypedLists = detail::GenericList<TypedList>;
 
-} // namespace ast
+}  // namespace ast
 
-} // namespace parser
+}  // namespace parser
 
 #endif /* end of include guard: AST_H */
