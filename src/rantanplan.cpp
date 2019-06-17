@@ -5,94 +5,116 @@
 #include "parser/visitor_variant.h"
 #include <iostream>
 
-class MyVisitor : public parser::ast::Visitor<MyVisitor> {
+using namespace parser::ast;
+class MyVisitor : public parser::visitor::Visitor<MyVisitor> {
 public:
   using Visitor<MyVisitor>::traverse;
-  using Visitor<MyVisitor>::visit;
+  using Visitor<MyVisitor>::visit_begin;
+  using Visitor<MyVisitor>::visit_end;
 
-  bool visit(const parser::ast::AST &) { return true; }
-  bool visit(const parser::ast::Domain &Domain) {
-    std::cout << "Domain at " << Domain.loc << std::endl;
+  bool visit_begin(const Domain &a) {
+    std::cout << "Domain: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::DomainElement &DomainElement) {
-    std::cout << "DomainElement at " << DomainElement.loc << std::endl;
+  bool visit_begin(const DomainElement &a) {
+    std::cout << "DomainElement!" << '\n';
     return true;
   }
-  bool visit(const parser::ast::Requirement &Requirement) {
-    std::cout << "Requirement at " << Requirement.loc << std::endl;
+  bool visit_begin(const RequirementsDef &a) {
+    std::cout << "RequirementsDef: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::RequirementsDef &RequirementsDef) {
-    std::cout << "RequirementsDef at " << RequirementsDef.loc << std::endl;
+  bool visit_begin(const TypesDef &a) {
+    std::cout << "TypesDef: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Type &Type) {
-    std::cout << "Type at " << Type.loc << std::endl;
+  bool visit_begin(const ConstantsDef &a) {
+    std::cout << "ConstantsDef: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::TypeList &TypeList) {
-    std::cout << "TypeList at " << TypeList.loc << std::endl;
+  bool visit_begin(const PredicatesDef &a) {
+    std::cout << "PredicatesDef: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::TypesDef &TypesDef) {
-    std::cout << "TypesDef at " << TypesDef.loc << '\n';
+  bool visit_begin(const ActionDef &a) {
+    std::cout << "ActionDef: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Constant &Constant) {
-    std::cout << "Constant at " << Constant.loc << '\n';
+  bool visit_begin(const Precondition &a) {
+    std::cout << "Precondition: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::ConstantList &ConstantList) {
-    std::cout << "ConstantList at " << ConstantList.loc << '\n';
+  bool visit_begin(const Effect &a) {
+    std::cout << "Effect: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::ConstantsDef &ConstantsDef) {
-    std::cout << "ConstantsDef at " << ConstantsDef.loc << '\n';
+  bool visit_begin(const ConditionList &a) {
+    std::cout << "ConditionList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Predicate &Predicate) {
-    std::cout << "Predicate at " << Predicate.loc << '\n';
+  bool visit_begin(const PredicateList &a) {
+    std::cout << "PredicateList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Parameter &Parameter) {
-    std::cout << "Parameter at " << Parameter.loc << '\n';
+  bool visit_begin(const TypedNameList &a) {
+    std::cout << "TypedNameList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::ParameterList &ParameterList) {
-    std::cout << "ParameterList at " << ParameterList.loc << '\n';
+  bool visit_begin(const TypedVariableList &a) {
+    std::cout << "TypedVariableList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::PredicatesDef &PredicatesDef) {
-    std::cout << "PredicatesDef at " << PredicatesDef.loc << '\n';
+  bool visit_begin(const RequirementsList &a) {
+    std::cout << "RequirementsList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Condition &Condition) {
-    std::cout << "Condition at " << Condition.loc << '\n';
+  bool visit_begin(const ArgumentList &a) {
+    std::cout << "ArgumentList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Argument &Argument) {
-    std::cout << "Argument at " << Argument.loc << '\n';
+  bool visit_begin(const NameList &a) {
+    std::cout << "NameList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::PredicateEvaluation &PredicateEvaluation) {
-    std::cout << "PredicateEvaluation at " << PredicateEvaluation.loc << '\n';
+  bool visit_begin(const VariableList &a) {
+    std::cout << "VariableList: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Conjunction &Conjunction) {
-    std::cout << "Conjunction at " << Conjunction.loc << '\n';
+  bool visit_begin(const Predicate &a) {
+    std::cout << "Predicate: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::Disjunction &disjunction) {
-    std::cout << "Disjunction at " << disjunction.loc << '\n';
+  bool visit_begin(const Condition &a) { std::cout << "Condition!" << '\n'; }
+  bool visit_begin(const PredicateEvaluation &a) {
+    return true;
+    std::cout << "PredicateEvaluation: " << a.loc << '\n';
+  }
+  bool visit_begin(const Conjunction &a) {
+    return true;
+    std::cout << "Conjunction: " << a.loc << '\n';
+  }
+  bool visit_begin(const Disjunction &a) {
+    return true;
+    std::cout << "Disjunction: " << a.loc << '\n';
+  }
+  bool visit_begin(const Negation &a) {
+    return true;
+    std::cout << "Negation: " << a.loc << '\n';
+  }
+  bool visit_begin(const Requirement &a) {
+    return true;
+    std::cout << "Requirement: " << a.loc << '\n';
+  }
+  bool visit_begin(const Argument &a) {
+    std::cout << "Argument!" << '\n';
     return true;
   }
-  bool visit(const parser::ast::Negation &negation) {
-    std::cout << "Negation at " << negation.loc << '\n';
+  bool visit_begin(const Name &a) {
+    std::cout << "Name: " << a.loc << '\n';
     return true;
   }
-  bool visit(const parser::ast::ActionDef &ActionDef) {
-    std::cout << "ActionDef at " << ActionDef.loc << '\n';
+  bool visit_begin(const Variable &a) {
+    std::cout << "Variable: " << a.loc << '\n';
     return true;
   }
 };
