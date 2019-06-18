@@ -6,6 +6,7 @@
 #include <iostream>
 
 using namespace parser::ast;
+
 class MyVisitor : public parser::visitor::Visitor<MyVisitor> {
 public:
   using Visitor<MyVisitor>::traverse;

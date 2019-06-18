@@ -18,7 +18,7 @@ using namespace ast;
  * in the Derived class */
 template <typename Derived> class Visitor {
 public:
-  Visitor() : condition_visitor_{get_derived_()}, domain_element_visitor_{get_derived_()} {}
+  Visitor() : visitor_{get_derived_()} {}
 
   bool traverse(const AST &ast) {
     get_derived_().visit_begin(ast);
@@ -36,8 +36,7 @@ public:
 
   bool traverse(const DomainElement &domain_element) {
     return get_derived_().visit_begin(domain_element) &&
-           std::visit(domain_element_visitor_, domain_element) &&
-           visit_end(domain_element);
+           std::visit(visitor_, domain_element) && visit_end(domain_element);
   }
 
   bool traverse(const RequirementsDef &requirements_def) {
@@ -88,54 +87,6 @@ public:
            get_derived_().visit_end(effect);
   }
 
-  bool traverse(const ConditionList &condition_list) {
-    return get_derived_().visit_begin(condition_list) &&
-           traverse_(*condition_list.elements) &&
-           get_derived_().visit_end(condition_list);
-  }
-
-  bool traverse(const PredicateList &predicate_list) {
-    return get_derived_().visit_begin(predicate_list) &&
-           traverse_(*predicate_list.elements) &&
-           get_derived_().visit_end(predicate_list);
-  }
-
-  bool traverse(const TypedNameList &typed_name_list) {
-    return get_derived_().visit_begin(typed_name_list) &&
-           traverse_(*typed_name_list.lists) &&
-           get_derived_().visit_end(typed_name_list);
-  }
-
-  bool traverse(const TypedVariableList &typed_variable_list) {
-    return get_derived_().visit_begin(typed_variable_list) &&
-           traverse_(*typed_variable_list.lists) &&
-           get_derived_().visit_end(typed_variable_list);
-  }
-
-  bool traverse(const RequirementsList &requirements_list) {
-    return get_derived_().visit_begin(requirements_list) &&
-           traverse_(*requirements_list.elements) &&
-           get_derived_().visit_end(requirements_list);
-  }
-
-  bool traverse(const ArgumentList &argument_list) {
-    return get_derived_().visit_begin(argument_list) &&
-           traverse_(*argument_list.elements) &&
-           get_derived_().visit_end(argument_list);
-  }
-
-  bool traverse(const NameList &name_list) {
-    return get_derived_().visit_begin(name_list) &&
-           traverse_(*name_list.elements) &&
-           get_derived_().visit_end(name_list);
-  }
-
-  bool traverse(const VariableList &variable_list) {
-    return get_derived_().visit_begin(variable_list) &&
-           traverse_(*variable_list.elements) &&
-           get_derived_().visit_end(variable_list);
-  }
-
   bool traverse(const Predicate &predicate) {
     return get_derived_().visit_begin(predicate) &&
            get_derived_().traverse(*predicate.parameters) &&
@@ -144,7 +95,7 @@ public:
 
   bool traverse(const Condition &condition) {
     return get_derived_().visit_begin(condition) &&
-           std::visit(condition_visitor_, condition);
+           std::visit(visitor_, condition);
     get_derived_().visit_end(condition);
   }
 
@@ -174,151 +125,51 @@ public:
 
   bool traverse(const Argument &argument) {
     return get_derived_().visit_begin(argument) &&
-           (std::holds_alternative<Name>(argument)
-                ? get_derived_().traverse(std::get<Name>(argument))
-                : get_derived_().traverse(std::get<Variable>(argument))) &&
-           get_derived_().visit_end(argument);
+           std::visit(visitor_, argument);
+    get_derived_().visit_end(argument);
   }
 
-  bool traverse(const Requirement &requirement) {
-    return get_derived_().visit_begin(requirement) &&
-           get_derived_().visit_end(requirement);
+  template <typename ListElement>
+  bool traverse(const detail::List<ListElement> &list) {
+    return get_derived_().visit_begin(list) && traverse_(*list.elements) &&
+           get_derived_().visit_end(list);
   }
 
-  bool traverse(const Name &name) {
-    return get_derived_().visit_begin(name) && get_derived_().visit_end(name);
-  }
-
-  bool traverse(const Variable &variable) {
-    return get_derived_().visit_begin(variable) &&
-           get_derived_().visit_end(variable);
-  }
-
-  bool traverse(const SingleTypedNameList &single_typed_name_list) {
-    return get_derived_().visit_begin(single_typed_name_list) &&
-           get_derived_().traverse(*single_typed_name_list.list) &&
-           (single_typed_name_list.type
-                ? get_derived_().traverse(single_typed_name_list.type.value())
+  template <typename ListElement>
+  bool traverse(const detail::SingleTypeList<ListElement> &single_typed_list) {
+    return get_derived_().visit_begin(single_typed_list) &&
+           get_derived_().traverse(*single_typed_list.list) &&
+           (single_typed_list.type
+                ? get_derived_().traverse(single_typed_list.type.value())
                 : true) &&
-           get_derived_().visit_end(single_typed_name_list);
+           get_derived_().visit_end(single_typed_list);
   }
 
-  bool traverse(const SingleTypedVariableList &single_typed_variable_list) {
-    return get_derived_().visit_begin(single_typed_variable_list) &&
-           get_derived_().traverse(*single_typed_variable_list.list) &&
-           (single_typed_variable_list.type
-                ? get_derived_().traverse(
-                      single_typed_variable_list.type.value())
-                : true) &&
-           get_derived_().visit_end(single_typed_variable_list);
+  template <typename ListElement>
+  bool traverse(const detail::TypedList<ListElement> &typed_list) {
+    return get_derived_().visit_begin(typed_list) &&
+           traverse_(*typed_list.lists) && get_derived_().visit_end(typed_list);
+  }
+
+  template <typename Node> bool traverse(const Node &node) {
+    return get_derived_().visit_begin(node) && get_derived_().visit_end(node);
   }
 
   // Visit functions to be overwritten.
-  bool visit_begin(const AST &) { return true; }
-  bool visit_begin(const Domain &) { return true; }
-  bool visit_begin(const DomainElement &) { return true; }
-  bool visit_begin(const RequirementsDef &) { return true; }
-  bool visit_begin(const TypesDef &) { return true; }
-  bool visit_begin(const ConstantsDef &) { return true; }
-  bool visit_begin(const PredicatesDef &) { return true; }
-  bool visit_begin(const ActionDef &) { return true; }
-  bool visit_begin(const Precondition &) { return true; }
-  bool visit_begin(const Effect &) { return true; }
-  bool visit_begin(const ConditionList &) { return true; }
-  bool visit_begin(const PredicateList &) { return true; }
-  bool visit_begin(const TypedNameList &) { return true; }
-  bool visit_begin(const TypedVariableList &) { return true; }
-  bool visit_begin(const RequirementsList &) { return true; }
-  bool visit_begin(const ArgumentList &) { return true; }
-  bool visit_begin(const NameList &) { return true; }
-  bool visit_begin(const VariableList &) { return true; }
-  bool visit_begin(const Predicate &) { return true; }
-  bool visit_begin(const Condition &) { return true; }
-  bool visit_begin(const PredicateEvaluation &) { return true; }
-  bool visit_begin(const Conjunction &) { return true; }
-  bool visit_begin(const Disjunction &) { return true; }
-  bool visit_begin(const Negation &) { return true; }
-  bool visit_begin(const Requirement &) { return true; }
-  bool visit_begin(const Argument &) { return true; }
-  bool visit_begin(const Name &) { return true; }
-  bool visit_begin(const Variable &) { return true; }
-
-  bool visit_end(const AST &) { return true; }
-  bool visit_end(const Domain &) { return true; }
-  bool visit_end(const DomainElement &) { return true; }
-  bool visit_end(const RequirementsDef &) { return true; }
-  bool visit_end(const TypesDef &) { return true; }
-  bool visit_end(const ConstantsDef &) { return true; }
-  bool visit_end(const PredicatesDef &) { return true; }
-  bool visit_end(const ActionDef &) { return true; }
-  bool visit_end(const Precondition &) { return true; }
-  bool visit_end(const Effect &) { return true; }
-  bool visit_end(const ConditionList &) { return true; }
-  bool visit_end(const PredicateList &) { return true; }
-  bool visit_end(const TypedNameList &) { return true; }
-  bool visit_end(const TypedVariableList &) { return true; }
-  bool visit_end(const RequirementsList &) { return true; }
-  bool visit_end(const ArgumentList &) { return true; }
-  bool visit_end(const NameList &) { return true; }
-  bool visit_end(const VariableList &) { return true; }
-  bool visit_end(const Predicate &) { return true; }
-  bool visit_end(const Condition &) { return true; }
-  bool visit_end(const PredicateEvaluation &) { return true; }
-  bool visit_end(const Conjunction &) { return true; }
-  bool visit_end(const Disjunction &) { return true; }
-  bool visit_end(const Negation &) { return true; }
-  bool visit_end(const Requirement &) { return true; }
-  bool visit_end(const Argument &) { return true; }
-  bool visit_end(const Name &) { return true; }
-  bool visit_end(const Variable &) { return true; }
-
-  // Helper, unlikely to be overwritten
-  bool visit_begin(const SingleTypedNameList &) { return true; }
-  bool visit_begin(const SingleTypedVariableList &) { return true; }
-
-  bool visit_end(const SingleTypedNameList &) { return true; }
-  bool visit_end(const SingleTypedVariableList &) { return true; }
+  template <typename Node> bool visit_begin(const Node &) { return true; }
+  template <typename Node> bool visit_end(const Node &) { return true; }
 
   virtual ~Visitor() {}
 
 private:
   Derived &get_derived_() { return *static_cast<Derived *>(this); }
 
-  struct DomainElementVisitor {
-    DomainElementVisitor(Derived &derived) : derived{derived} {}
-    bool operator()(const RequirementsDef &requirements_def) {
-      return derived.traverse(requirements_def);
-    }
-    bool operator()(const TypesDef &types_def) {
-      return derived.traverse(types_def);
-    }
-    bool operator()(const ConstantsDef &constants_def) {
-      return derived.traverse(constants_def);
-    }
-    bool operator()(const PredicatesDef &predicates_def) {
-      return derived.traverse(predicates_def);
-    }
-    bool operator()(const ActionDef &action_def) {
-      return derived.traverse(action_def);
-    }
+  struct NodeVisitor {
+    NodeVisitor(Derived &derived) : derived{derived} {}
 
-    Derived &derived;
-  };
-
-  struct ConditionVisitor {
-    ConditionVisitor(Derived &derived) : derived{derived} {}
     bool operator()(const std::monostate &) { return true; }
-    bool operator()(const PredicateEvaluation &predicate_evaluation) {
-      return derived.traverse(predicate_evaluation);
-    }
-    bool operator()(const Conjunction &conjunction) {
-      return derived.traverse(conjunction);
-    }
-    bool operator()(const Disjunction &disjunction) {
-      return derived.traverse(disjunction);
-    }
-    bool operator()(const Negation &negation) {
-      return derived.traverse(negation);
+    template <typename Node> bool operator()(const Node &node) {
+      return derived.traverse(node);
     }
 
     Derived &derived;
@@ -334,8 +185,7 @@ private:
     return true;
   }
 
-  ConditionVisitor condition_visitor_;
-  DomainElementVisitor domain_element_visitor_;
+  NodeVisitor visitor_;
 };
 
 } // namespace visitor
