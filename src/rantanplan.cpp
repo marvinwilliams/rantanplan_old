@@ -85,26 +85,29 @@ public:
     std::cout << "Predicate: " << a.loc << '\n';
     return true;
   }
-  bool visit_begin(const Condition &a) { std::cout << "Condition!" << '\n'; }
-  bool visit_begin(const PredicateEvaluation &a) {
+  bool visit_begin(const Condition &a) {
+    std::cout << "Condition!" << '\n';
     return true;
+  }
+  bool visit_begin(const PredicateEvaluation &a) {
     std::cout << "PredicateEvaluation: " << a.loc << '\n';
+    return true;
   }
   bool visit_begin(const Conjunction &a) {
-    return true;
     std::cout << "Conjunction: " << a.loc << '\n';
+    return true;
   }
   bool visit_begin(const Disjunction &a) {
-    return true;
     std::cout << "Disjunction: " << a.loc << '\n';
+    return true;
   }
   bool visit_begin(const Negation &a) {
-    return true;
     std::cout << "Negation: " << a.loc << '\n';
+    return true;
   }
   bool visit_begin(const Requirement &a) {
-    return true;
     std::cout << "Requirement: " << a.loc << '\n';
+    return true;
   }
   bool visit_begin(const Argument &a) {
     std::cout << "Argument!" << '\n';

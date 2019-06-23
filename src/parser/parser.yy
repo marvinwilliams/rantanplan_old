@@ -64,7 +64,7 @@ END 0         "end of file"
 
 <std::string> NAME      "name"
 <std::string> VARIABLE  "var"
-<std::string> KEYWORD   "key"
+<std::string> REQUIREMENT   "req"
 ;
 
 %type
@@ -94,8 +94,10 @@ goal-def
 <std::unique_ptr<ast::ArgumentList>> argument-list
 <std::unique_ptr<ast::TypedNameList>> typed-name-list
 <std::unique_ptr<ast::TypedVariableList>> typed-var-list
-<std::unique_ptr<ast::TypedNameList>> single-typed-name-lists
-<std::unique_ptr<ast::TypedVariableList>> single-typed-variable-lists
+<std::unique_ptr<std::vector<std::unique_ptr<ast::TypedNameList::value_type>>>> single-typed-name-lists
+<std::unique_ptr<std::vector<std::unique_ptr<ast::TypedVariableList::value_type>>>> single-typed-variable-lists
+<std::unique_ptr<ast::NameList>> empty-or-name-list
+<std::unique_ptr<ast::VariableList>> empty-or-var-list
 <std::unique_ptr<ast::NameList>> name-list
 <std::unique_ptr<ast::VariableList>> var-list
 ;
@@ -112,7 +114,7 @@ unit:
 ;
 domain-def:
     "(" DEFINE "(" DOMAIN NAME ")" domain-body ")" {
-      $$ = std::make_unique<ast::Domain>(@$, $[NAME], std::move($[domain-body]));
+      $$ = std::make_unique<ast::Domain>(@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[domain-body]));
     }
 ;
 domain-body:
@@ -146,13 +148,13 @@ require-def:
     }
 ;
 require-list:
-    KEYWORD {
+    REQUIREMENT {
       $$ = std::make_unique<ast::RequirementsList>(@$);
-      $$->add(@[KEYWORD], std::make_unique<ast::Requirement>(@$, $[KEYWORD]));
+      $$->add(@[REQUIREMENT], std::make_unique<ast::Requirement>(@$, $[REQUIREMENT]));
     }
-  | require-list KEYWORD {
+  | require-list REQUIREMENT {
       $$ = std::move($1);
-      $$->add(@[KEYWORD], std::make_unique<ast::Requirement>(@[KEYWORD], $[KEYWORD]));
+      $$->add(@[REQUIREMENT], std::make_unique<ast::Requirement>(@[REQUIREMENT], $[REQUIREMENT]));
     }
 ;
 types-def:
@@ -182,12 +184,12 @@ predicate-list:
 ;
 predicate-def:
     "(" NAME typed-var-list[parameter-list] ")" {
-      $$ = std::make_unique<ast::Predicate>(@$, $[NAME], std::move($[parameter-list]));
+      $$ = std::make_unique<ast::Predicate>(@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[parameter-list]));
     }
 ;
 action-def:
     "(" ACTION NAME PARAMETERS "(" typed-var-list[parameter-list] ")" action-body ")" {
-      $$ = std::make_unique<ast::DomainElement>(ast::ActionDef{@$, $[NAME], std::move($[parameter-list]), std::move($[action-body].first), std::move($[action-body].second)});
+      $$ = std::make_unique<ast::DomainElement>(ast::ActionDef{@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[parameter-list]), std::move($[action-body].first), std::move($[action-body].second)});
     }
 ;
 action-body:
@@ -208,10 +210,10 @@ precondition-body:
       $$ = std::make_unique<ast::Condition>();
     }
   | NAME argument-list {
-      $$ = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, $[NAME], std::move($[argument-list])});
+      $$ = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[argument-list])});
     }
   | "=" argument-list {
-      $$ = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, "=", std::move($[argument-list])});
+      $$ = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, std::make_unique<ast::Name>(@1, "="), std::move($[argument-list])});
     }
   | "and" precondition-list {
       $$ = std::make_unique<ast::Condition>(ast::Conjunction{@$, std::move($[precondition-list])});
@@ -245,13 +247,13 @@ effect-body:
       $$ = std::make_unique<ast::Condition>();
     }
   | NAME argument-list {
-      $$ = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, $[NAME], std::move($[argument-list])});
+      $$ = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[argument-list])});
     }
   | "and" effect-list {
       $$ = std::make_unique<ast::Condition>(ast::Conjunction{@$, std::move($[effect-list])});
     }
   | "not" "(" NAME argument-list ")" {
-      auto predicate_evaluation = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, $[NAME], std::move($[argument-list])});
+      auto predicate_evaluation = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[argument-list])});
       $$ = std::make_unique<ast::Condition>(ast::Negation{@$, std::move(predicate_evaluation)});
     }
 ;
@@ -285,9 +287,9 @@ init-def:
 ;
 init-list:
     %empty {}
-  | init-list "(" NAME name-list ")" {
+  | init-list "(" name-list ")" {
     }
-  | init-list "(" "not" "(" NAME name-list ")" ")" {
+  | init-list "(" "not" "(" name-list ")" ")" {
   }
 ;
 goal-def:
@@ -308,55 +310,77 @@ argument-list:
     }
 ;
 typed-name-list:
-    single-typed-name-lists name-list {
-      $$ = std::move($1);
-      auto single_typed_name_list = std::make_unique<ast::SingleTypedNameList>(@[name-list], std::move($[name-list]));
-      $$->add(std::move(single_typed_name_list));
+    single-typed-name-lists[lists] {
+      $$ = std::make_unique<ast::TypedNameList>(@$, std::move($[lists]));
+    }
+  | single-typed-name-lists[lists] name-list {
+      auto list = std::make_unique<ast::TypedNameList::value_type>(@[name-list], std::move($[name-list]));
+      $[lists]->push_back(std::move(list));
+      $$ = std::make_unique<ast::TypedNameList>(@$, std::move($[lists]));
     }
 ;
 typed-var-list:
-    single-typed-variable-lists var-list {
-      $$ = std::move($1);
-      auto single_typed_variable_list = std::make_unique<ast::SingleTypedVariableList>(@[var-list], std::move($[var-list]));
-      $$->add(std::move(single_typed_variable_list));
+    single-typed-variable-lists[lists] {
+      $$ = std::make_unique<ast::TypedVariableList>(@$, std::move($[lists]));
+    }
+  | single-typed-variable-lists[lists] var-list {
+      auto list = std::make_unique<ast::TypedVariableList::value_type>(@[var-list], std::move($[var-list]));
+      $[lists]->push_back(std::move(list));
+      $$ = std::make_unique<ast::TypedVariableList>(@$, std::move($[lists]));
     }
 ;
 single-typed-name-lists:
     %empty{
-      $$ = std::make_unique<ast::TypedNameList>(@$);
+      $$ = std::make_unique<std::vector<std::unique_ptr<ast::TypedNameList::value_type>>>();
     }
-  | single-typed-name-lists name-list NAME[last-name] "-" NAME[type] {
-      $[name-list]->add(@[last-name], std::make_unique<ast::Name>(@[last-name], $[last-name]));
+  | single-typed-name-lists name-list "-" NAME[type] {
       auto type = ast::Name{@[type], $[type]};
-      auto single_typed_name_list = std::make_unique<ast::SingleTypedNameList>(@[name-list] + @[type], std::move($[name-list]), type);
+      auto list = std::make_unique<ast::TypedNameList::value_type>(@[name-list] + @[type], std::move($[name-list]), type);
       $$ = std::move($1);
-      $$->add(std::move(single_typed_name_list));
+      $$->push_back(std::move(list));
     }
 ;
 single-typed-variable-lists:
     %empty{
-      $$ = std::make_unique<ast::TypedVariableList>(@$);
+      $$ = std::make_unique<std::vector<std::unique_ptr<ast::TypedVariableList::value_type>>>();
     }
-  | single-typed-variable-lists var-list VARIABLE[last-var] "-" NAME[type] {
-      $[var-list]->add(@[last-var], std::make_unique<ast::Variable>(@[last-var], $[last-var]));
+  | single-typed-variable-lists var-list "-" NAME[type] {
       auto type = ast::Name{@[type], $[type]};
-      auto single_typed_variable_list = std::make_unique<ast::SingleTypedVariableList>(@[var-list] + @[type], std::move($[var-list]), type);
+      auto list = std::make_unique<ast::TypedVariableList::value_type>(@[var-list] + @[type], std::move($[var-list]), type);
       $$ = std::move($1);
-      $$->add(std::move(single_typed_variable_list));
+      $$->push_back(std::move(list));
+    }
+;
+empty-or-name-list:
+    %empty {
+      $$ = std::make_unique<ast::NameList>(@$);
+    }
+  | name-list {
+      $$ = std::move($1);
     }
 ;
 name-list:
-    %empty {
+    NAME {
       $$ = std::make_unique<ast::NameList>(@$);
+      $$->add(@[NAME], std::make_unique<ast::Name>(@[NAME], $[NAME]));
     }
   | name-list NAME {
       $$ = std::move($1);
       $$->add(@[NAME], std::make_unique<ast::Name>(@[NAME], $[NAME]));
     }
 ;
-var-list:
+empty-or-var-list:
     %empty {
+      $$ = std::make_unique<ast::VarList>(@$);
+    }
+  | var-list {
+      $$ = std::move($1);
+    }
+;
+var-list:
+    VARIABLE {
       $$ = std::make_unique<ast::VariableList>(@$);
+      $$->add(@[VARIABLE], std::make_unique<ast::Variable>(@[VARIABLE], $[VARIABLE]));
     }
   | var-list VARIABLE {
       $$ = std::move($1);

@@ -54,7 +54,7 @@ NAME [[:alpha:]][[:alnum:]_\-]*
 ":requirements"         return parser::Parser::make_REQUIREMENTS(loc_);
 {NAME}                  return parser::Parser::make_NAME(YYText(), loc_);
 \?{NAME}                return parser::Parser::make_VARIABLE(YYText(), loc_);
-:{NAME}                 return parser::Parser::make_KEYWORD(YYText(), loc_);
+:{NAME}                 return parser::Parser::make_REQUIREMENT(YYText(), loc_);
 
 <switch_stream><<EOF>>  {
                           loc_.initialize(problem_file_);

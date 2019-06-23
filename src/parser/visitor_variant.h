@@ -31,7 +31,8 @@ public:
 
   bool traverse(const Domain &domain) {
     return get_derived_().visit_begin(domain) &&
-           traverse_(*domain.domain_body) && get_derived_().visit_end(domain);
+           get_derived_().traverse(*domain.name) &&
+    traverse_(*domain.domain_body) && get_derived_().visit_end(domain);
   }
 
   bool traverse(const DomainElement &domain_element) {
@@ -65,6 +66,7 @@ public:
 
   bool traverse(const ActionDef &action_def) {
     return get_derived_().visit_begin(action_def) &&
+           get_derived_().traverse(*action_def.name) &&
            get_derived_().traverse(*action_def.parameters) &&
            (action_def.precondition
                 ? get_derived_().traverse(*action_def.precondition.value())
@@ -89,6 +91,7 @@ public:
 
   bool traverse(const Predicate &predicate) {
     return get_derived_().visit_begin(predicate) &&
+           get_derived_().traverse(*predicate.name) &&
            get_derived_().traverse(*predicate.parameters) &&
            get_derived_().visit_end(predicate);
   }
@@ -101,6 +104,7 @@ public:
 
   bool traverse(const PredicateEvaluation &predicate_evaluation) {
     return get_derived_().visit_begin(predicate_evaluation) &&
+           get_derived_().traverse(*predicate_evaluation.name) &&
            get_derived_().traverse(*predicate_evaluation.arguments) &&
            get_derived_().visit_end(predicate_evaluation);
   }

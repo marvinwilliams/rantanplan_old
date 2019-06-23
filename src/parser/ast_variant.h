@@ -45,38 +45,40 @@ struct Requirement : Node {
 namespace detail {
 
 template <typename T> struct List : Node {
-  List(const location &loc)
-      : Node{loc}, elements{
-                       std::make_unique<std::vector<std::unique_ptr<T>>>()} {}
+  using value_type = T;
 
-  void add(const location &loc, std::unique_ptr<T> element) {
+  List(const location &loc)
+      : Node{loc},
+        elements{std::make_unique<std::vector<std::unique_ptr<value_type>>>()} {
+  }
+
+  void add(const location &loc, std::unique_ptr<value_type> element) {
     this->loc += loc;
     elements->push_back(std::move(element));
   }
 
-  std::unique_ptr<std::vector<std::unique_ptr<T>>> elements;
+  std::unique_ptr<std::vector<std::unique_ptr<value_type>>> elements;
 };
 
 template <typename T> struct SingleTypeList : Node {
-  SingleTypeList(const location &loc, std::unique_ptr<List<T>> list,
+  using element_type = List<T>;
+
+  SingleTypeList(const location &loc, std::unique_ptr<element_type> list,
                  std::optional<Name> type = std::nullopt)
       : Node{loc}, list{std::move(list)}, type{type} {}
 
-  std::unique_ptr<List<T>> list;
+  std::unique_ptr<element_type> list;
   std::optional<Name> type;
 };
 
 template <typename T> struct TypedList : Node {
-  TypedList(const location &loc)
-      : Node{loc}, lists{std::make_unique<
-                       std::vector<std::unique_ptr<SingleTypeList<T>>>>()} {}
+  using value_type = SingleTypeList<T>;
 
-  void add(std::unique_ptr<SingleTypeList<T>> list) {
-    loc += list->loc;
-    lists->push_back(std::move(list));
-  }
+  TypedList(const location &loc,
+            std::unique_ptr<std::vector<std::unique_ptr<value_type>>> lists)
+      : Node{loc}, lists{std::move(lists)} {}
 
-  std::unique_ptr<std::vector<std::unique_ptr<SingleTypeList<T>>>> lists;
+  std::unique_ptr<std::vector<std::unique_ptr<value_type>>> lists;
 };
 
 } // namespace detail
@@ -114,11 +116,11 @@ struct ConstantsDef : Node {
 };
 
 struct Predicate : Node {
-  Predicate(const location &loc, const std::string &name,
+  Predicate(const location &loc, std::unique_ptr<Name> name,
             std::unique_ptr<TypedVariableList> parameters)
-      : Node{loc}, name{name}, parameters{std::move(parameters)} {}
+      : Node{loc}, name{std::move(name)}, parameters{std::move(parameters)} {}
 
-  std::string name;
+  std::unique_ptr<Name> name;
   std::unique_ptr<TypedVariableList> parameters;
 };
 
@@ -143,11 +145,11 @@ using Condition = std::variant<std::monostate, PredicateEvaluation, Conjunction,
 using ConditionList = detail::List<Condition>;
 
 struct PredicateEvaluation : Node {
-  PredicateEvaluation(const location &loc, const std::string &name,
+  PredicateEvaluation(const location &loc, std::unique_ptr<Name> name,
                       std::unique_ptr<ArgumentList> arguments)
-      : Node{loc}, name{name}, arguments{std::move(arguments)} {}
+      : Node{loc}, name{std::move(name)}, arguments{std::move(arguments)} {}
 
-  std::string name;
+  std::unique_ptr<Name> name;
   std::unique_ptr<ArgumentList> arguments;
 };
 
@@ -187,14 +189,14 @@ struct Effect : Node {
 };
 
 struct ActionDef : Node {
-  ActionDef(const location &loc, const std::string &name,
+  ActionDef(const location &loc, std::unique_ptr<Name> name,
             std::unique_ptr<TypedVariableList> parameters,
             std::optional<std::unique_ptr<Precondition>> precondition,
             std::optional<std::unique_ptr<Effect>> effect)
-      : Node{loc}, name{name}, parameters{std::move(parameters)},
+      : Node{loc}, name{std::move(name)}, parameters{std::move(parameters)},
         precondition{std::move(precondition)}, effect{std::move(effect)} {}
 
-  std::string name;
+  std::unique_ptr<Name> name;
   std::unique_ptr<TypedVariableList> parameters;
   std::optional<std::unique_ptr<Precondition>> precondition;
   std::optional<std::unique_ptr<Effect>> effect;
@@ -205,11 +207,11 @@ using DomainElement = std::variant<RequirementsDef, TypesDef, ConstantsDef,
 
 struct Domain : Node {
   Domain(
-      const location &loc, const std::string &name,
+      const location &loc, std::unique_ptr<Name> name,
       std::unique_ptr<std::vector<std::unique_ptr<DomainElement>>> domain_body)
-      : Node{loc}, name{name}, domain_body{std::move(domain_body)} {}
+      : Node{loc}, name{std::move(name)}, domain_body{std::move(domain_body)} {}
 
-  std::string name;
+  std::unique_ptr<Name> name;
   std::unique_ptr<std::vector<std::unique_ptr<DomainElement>>> domain_body;
 };
 
