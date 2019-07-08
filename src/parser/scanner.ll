@@ -23,9 +23,9 @@ NAME [[:alpha:]][[:alnum:]_\-]*
   loc_.step();
 %}
 
-{BLANK}+                loc_.step();
-{COMMENT}               loc_.step();
-\n+                     loc_.lines(YYLeng()); loc_.step();
+<*>{BLANK}+             loc_.step();
+<*>{COMMENT}            loc_.step();
+<*>\n+                  loc_.lines(YYLeng()); loc_.step();
 
 "("                     return parser::Parser::make_LPAREN(loc_);
 ")"                     return parser::Parser::make_RPAREN(loc_);

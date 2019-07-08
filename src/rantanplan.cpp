@@ -1,8 +1,8 @@
 #include "config.h"
-#include "parser/driver.h"
-#include "parser/parser.hxx"
-#include "parser/scanner.h"
-#include "parser/visitor_variant.h"
+#include "driver.h"
+#include "parser.hxx"
+#include "scanner.h"
+#include "visitor.h"
 #include <iostream>
 
 using namespace parser::ast;
@@ -17,8 +17,8 @@ public:
     std::cout << "Domain: " << a.loc << '\n';
     return true;
   }
-  bool visit_begin(const DomainElement &a) {
-    std::cout << "DomainElement!" << '\n';
+  bool visit_begin(const Element &a) {
+    std::cout << "Element!" << '\n';
     return true;
   }
   bool visit_begin(const RequirementsDef &a) {
@@ -124,8 +124,8 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-  std::cout << "This is rantanplan version " << VERSION_MAJOR << "."
-            << VERSION_MINOR << '\n';
+  /* std::cout << "This is rantanplan version " << VERSION_MAJOR << "." */
+  /*           << VERSION_MINOR << '\n'; */
   if (argc < 3) {
     std::cerr << "Usage: " << argv[0] << " DOMAIN PROBLEM "
               << "[OPTION]..." << '\n';
@@ -133,11 +133,14 @@ int main(int argc, char *argv[]) {
   }
   std::string domain_in{argv[1]};
   std::string problem_in{argv[2]};
-  parser::Driver driver;
 
-  auto result = driver.parse(&domain_in, &problem_in);
+  auto ast = parser::parse(&domain_in, &problem_in);
 
-  MyVisitor v;
-  v.traverse(*driver.ast);
-  return result;
+  if (ast) {
+    std::cout << "Test" << std::endl;
+    MyVisitor v;
+    v.traverse(*ast);
+    return 0;
+  }
+  return 1;
 }

@@ -3,7 +3,7 @@
 %skeleton "lalr1.cc"
 
 %code requires {
-  #include "ast_variant.h"
+  #include "ast.h"
   #include "location.hxx"
 
   namespace parser {
@@ -15,8 +15,6 @@
 }
 
 %code top {
-  #include "ast_variant.h"
-  #include "location.hxx"
   #include "parser.hxx"
   #include "scanner.h"
   #include <iostream>
@@ -60,24 +58,24 @@ INIT          "init"
 GOAL          "goal"
 REQUIREMENTS  "reqs"
 
-END 0         "end of file"
+END 0         "eof"
 
-<std::string> NAME      "name"
-<std::string> VARIABLE  "var"
-<std::string> REQUIREMENT   "req"
+<std::string> NAME        "name"
+<std::string> VARIABLE    "var"
+<std::string> REQUIREMENT "req"
 ;
 
 %type
 <std::unique_ptr<ast::Domain>> domain-def
-<std::unique_ptr<std::vector<std::unique_ptr<ast::DomainElement>>>> domain-body
-<std::unique_ptr<ast::DomainElement>> require-def
+<std::unique_ptr<std::vector<std::unique_ptr<ast::Element>>>> domain-body
+<std::unique_ptr<ast::Element>> require-def
 <std::unique_ptr<ast::RequirementsList>> require-list
-<std::unique_ptr<ast::DomainElement>> types-def
-<std::unique_ptr<ast::DomainElement>> constants-def
-<std::unique_ptr<ast::DomainElement>> predicates-def
+<std::unique_ptr<ast::Element>> types-def
+<std::unique_ptr<ast::Element>> constants-def
+<std::unique_ptr<ast::Element>> predicates-def
 <std::unique_ptr<ast::PredicateList>> predicate-list
 <std::unique_ptr<ast::Predicate>> predicate-def
-<std::unique_ptr<ast::DomainElement>> action-def
+<std::unique_ptr<ast::Element>> action-def
 <std::pair<std::optional<std::unique_ptr<ast::Precondition>>, std::optional<std::unique_ptr<ast::Effect>>>> action-body
 <std::optional<std::unique_ptr<ast::Precondition>>> precondition-def
 <std::unique_ptr<ast::Condition>> precondition-body
@@ -85,19 +83,18 @@ END 0         "end of file"
 <std::optional<std::unique_ptr<ast::Effect>>> effect-def
 <std::unique_ptr<ast::Condition>> effect-body
 <std::unique_ptr<ast::ConditionList>> effect-list
-problem-def
-problem-body
-object-def
-init-def
-init-list
-goal-def
+<std::unique_ptr<ast::Problem>> problem-def
+<std::unique_ptr<std::vector<std::unique_ptr<ast::Element>>>> problem-body
+<std::unique_ptr<ast::Element>> objects-def
+<std::unique_ptr<ast::Element>> init-def
+<std::unique_ptr<ast::InitList>> init-list
+<std::unique_ptr<ast::Element>> goal-def
 <std::unique_ptr<ast::ArgumentList>> argument-list
 <std::unique_ptr<ast::TypedNameList>> typed-name-list
 <std::unique_ptr<ast::TypedVariableList>> typed-var-list
 <std::unique_ptr<std::vector<std::unique_ptr<ast::TypedNameList::value_type>>>> single-typed-name-lists
 <std::unique_ptr<std::vector<std::unique_ptr<ast::TypedVariableList::value_type>>>> single-typed-variable-lists
 <std::unique_ptr<ast::NameList>> empty-or-name-list
-<std::unique_ptr<ast::VariableList>> empty-or-var-list
 <std::unique_ptr<ast::NameList>> name-list
 <std::unique_ptr<ast::VariableList>> var-list
 ;
@@ -110,6 +107,7 @@ unit:
       ast.set_domain(std::move($[domain-def]));
     }
     problem-def {
+      ast.set_problem(std::move($[problem-def]));
     }
 ;
 domain-def:
@@ -119,7 +117,7 @@ domain-def:
 ;
 domain-body:
     %empty {
-      $$ = std::make_unique<std::vector<std::unique_ptr<ast::DomainElement>>>();
+      $$ = std::make_unique<std::vector<std::unique_ptr<ast::Element>>>();
     }
   | domain-body require-def {
       $$ = std::move($1);
@@ -144,13 +142,13 @@ domain-body:
 ;
 require-def:
     "(" REQUIREMENTS require-list ")" {
-      $$ = std::make_unique<ast::DomainElement>(ast::RequirementsDef{@$, std::move($[require-list])});
+      $$ = std::make_unique<ast::Element>(ast::RequirementsDef{@$, std::move($[require-list])});
     }
 ;
 require-list:
     REQUIREMENT {
       $$ = std::make_unique<ast::RequirementsList>(@$);
-      $$->add(@[REQUIREMENT], std::make_unique<ast::Requirement>(@$, $[REQUIREMENT]));
+      $$->add(@$, std::make_unique<ast::Requirement>(@$, $[REQUIREMENT]));
     }
   | require-list REQUIREMENT {
       $$ = std::move($1);
@@ -159,17 +157,17 @@ require-list:
 ;
 types-def:
     "(" TYPES typed-name-list[types-list] ")" {
-      $$ = std::make_unique<ast::DomainElement>(ast::TypesDef{@$, std::move($[types-list])});
+      $$ = std::make_unique<ast::Element>(ast::TypesDef{@$, std::move($[types-list])});
     }
 ;
 constants-def:
     "(" CONSTANTS typed-name-list[constants-list] ")" {
-      $$ = std::make_unique<ast::DomainElement>(ast::TypesDef{@$, std::move($[constants-list])});
+      $$ = std::make_unique<ast::Element>(ast::TypesDef{@$, std::move($[constants-list])});
     }
 ;
 predicates-def:
     "(" PREDICATES predicate-list ")" {
-      $$ = std::make_unique<ast::DomainElement>(ast::PredicatesDef{@$, std::move($[predicate-list])});
+      $$ = std::make_unique<ast::Element>(ast::PredicatesDef{@$, std::move($[predicate-list])});
     }
 ;
 predicate-list:
@@ -189,7 +187,7 @@ predicate-def:
 ;
 action-def:
     "(" ACTION NAME PARAMETERS "(" typed-var-list[parameter-list] ")" action-body ")" {
-      $$ = std::make_unique<ast::DomainElement>(ast::ActionDef{@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[parameter-list]), std::move($[action-body].first), std::move($[action-body].second)});
+      $$ = std::make_unique<ast::Element>(ast::ActionDef{@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[parameter-list]), std::move($[action-body].first), std::move($[action-body].second)});
     }
 ;
 action-body:
@@ -252,8 +250,8 @@ effect-body:
   | "and" effect-list {
       $$ = std::make_unique<ast::Condition>(ast::Conjunction{@$, std::move($[effect-list])});
     }
-  | "not" "(" NAME argument-list ")" {
-      auto predicate_evaluation = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@$, std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[argument-list])});
+  | "not" "("[start] NAME argument-list ")"[end] {
+      auto predicate_evaluation = std::make_unique<ast::Condition>(ast::PredicateEvaluation{@[start] + @[end], std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[argument-list])});
       $$ = std::make_unique<ast::Condition>(ast::Negation{@$, std::move(predicate_evaluation)});
     }
 ;
@@ -267,33 +265,59 @@ effect-list:
     }
 ;
 problem-def:
-    "(" DEFINE "(" PROBLEM NAME ")" "(" DOMAIN_REF NAME ")" problem-body ")" {
+    "(" DEFINE "(" PROBLEM NAME[problem-name] ")" "(" DOMAIN_REF NAME[ref-name] ")" problem-body ")" {
+      $$ = std::make_unique<ast::Problem>(@$, std::make_unique<ast::Name>(@[problem-name], $[problem-name]), std::make_unique<ast::Name>(@[ref-name], $[ref-name]), std::move($[problem-body]));
     }
 ;
 problem-body:
-    %empty {}
-  | problem-body require-def {}
-  | problem-body object-def {}
-  | problem-body init-def {}
-  | problem-body goal-def {}
+    %empty {
+      $$ = std::make_unique<std::vector<std::unique_ptr<ast::Element>>>();
+    }
+  | problem-body require-def {
+      $$ = std::move($1);
+      $$->push_back(std::move($[require-def]));
+    }
+  | problem-body objects-def {
+      $$ = std::move($1);
+      $$->push_back(std::move($[objects-def]));
+  }
+  | problem-body init-def {
+      $$ = std::move($1);
+      $$->push_back(std::move($[init-def]));
+  }
+  | problem-body goal-def {
+      $$ = std::move($1);
+      $$->push_back(std::move($[goal-def]));
+  }
 ;
-object-def:
-    "(" OBJECTS typed-name-list ")" {
+objects-def:
+    "(" OBJECTS typed-name-list[objects-list] ")" {
+      $$ = std::make_unique<ast::Element>(ast::ObjectsDef{@$, std::move($[objects-list])});
     }
 ;
 init-def:
     "(" INIT init-list ")" {
+      $$ = std::make_unique<ast::Element>(ast::InitDef{@$, std::move($[init-list])});
     }
 ;
 init-list:
-    %empty {}
-  | init-list "(" name-list ")" {
+    %empty {
+      $$ = std::make_unique<ast::InitList>(@$);
     }
-  | init-list "(" "not" "(" name-list ")" ")" {
-  }
+  | init-list "("[start] NAME empty-or-name-list[argument-list] ")"[end] {
+      $$ = std::move($1);
+      auto predicate = ast::InitPredicate{@[start] + @[end], std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[argument-list])};
+      $$->add(@[start] + @[end], std::make_unique<ast::InitCondition>(std::move(predicate)));
+    }
+  | init-list "("[start] "not" "("[inner-start] NAME empty-or-name-list[argument-list] ")"[inner-end] ")"[end] {
+      $$ = std::move($1);
+      auto predicate = std::make_unique<ast::InitPredicate>(@[inner-start] + @[inner-end], std::make_unique<ast::Name>(@[NAME], $[NAME]), std::move($[argument-list]));
+      $$->add(@[start] + @[end], std::make_unique<ast::InitCondition>(ast::InitNegation{@[start] + @[end], std::move(predicate)}));
+    }
 ;
 goal-def:
-    "(" GOAL "(" precondition-body ")" ")" {
+    "(" GOAL "(" precondition-body[goal] ")" ")" {
+      $$ = std::make_unique<ast::Element>(ast::GoalDef{@$, std::move($[goal])});
     }
 ;
 argument-list:
@@ -367,14 +391,6 @@ name-list:
   | name-list NAME {
       $$ = std::move($1);
       $$->add(@[NAME], std::make_unique<ast::Name>(@[NAME], $[NAME]));
-    }
-;
-empty-or-var-list:
-    %empty {
-      $$ = std::make_unique<ast::VarList>(@$);
-    }
-  | var-list {
-      $$ = std::move($1);
     }
 ;
 var-list:

@@ -9,6 +9,7 @@ add_executable(rantanplan
 
 target_include_directories(rantanplan PRIVATE ".")
 target_include_directories(rantanplan PRIVATE "parser")
+target_include_directories(rantanplan PRIVATE "parser/ast")
 target_include_directories(rantanplan PRIVATE "model")
 target_include_directories(rantanplan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(rantanplan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/parser")
